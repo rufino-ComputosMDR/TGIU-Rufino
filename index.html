@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Cómputos Rufino</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* ESTILOS CRÍTICOS PARA QUE EL MAPA SE VEA */
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; background: #eee; }
+
+        .buscador-flotante {
+            position: absolute; top: 10px; left: 10px; z-index: 1000;
+            background: white; padding: 12px; width: 260px; 
+            max-height: 90vh; overflow-y: auto;
+            border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            font-family: Arial, sans-serif;
+        }
+
+        h2 { font-size: 13px; margin: 0 0 10px 0; color: #0056b3; text-align: center; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        .btn-stats { width: 100%; padding: 8px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 10px; }
+        
+        #areaGrafico { display: none; background: #f9f9f9; padding: 8px; border-radius: 4px; margin-bottom: 10px; }
+
+        #contenidoFicha { 
+            display: none; margin-top: 10px; border-top: 1px solid #ddd; 
+            padding-top: 10px; position: relative; font-size: 11px; 
+        }
+
+        .btn-cerrar-ficha {
+            position: absolute; top: 0; right: 0; background: #e74c3c; color: white; 
+            border: none; width: 20px; height: 20px; cursor: pointer; font-weight: bold; border-radius: 3px;
+        }
+
+        .etiqueta { font-weight: bold; color: #666; font-size: 9px; text-transform: uppercase; }
+        .valor { font-weight: bold; color: #000; }
+        .vencer { background: #fff3cd; color: #856404; padding: 2px 4px; font-weight: bold; }
+        .deuda { background: #f8d7da; color: #721c24; padding: 2px 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="buscador-flotante">
+        <h2>CENTRO DE CÓMPUTOS RUFINO</h2>
+        <input type="text" id="inputApellido" placeholder="Buscar Apellido o Partida...">
+        
+        <button id="btnToggleStats" class="btn-stats">📊 Ver Estadísticas</button>
+        
+        <div id="areaGrafico">
+            <canvas id="graficoBarras" height="150"></canvas>
+        </div>
+
+        <div id="listadoResultados"></div>
+        <div id="contenidoFicha"></div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
