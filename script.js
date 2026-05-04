@@ -1,4 +1,18 @@
-﻿// 1. INICIALIZACIÓN INMEDIATA DEL MAPA
+﻿// CLAVE DE ACCESO
+const CLAVE_CORRECTA = "Rufino2026"; // Cambiá esto por la clave que quieras
+let acceso = sessionStorage.getItem("acceso_tgi");
+
+if (acceso !== "concedido") {
+    let intento = prompt("Ingrese la clave de acceso al sistema:");
+    if (intento === CLAVE_CORRECTA) {
+        sessionStorage.setItem("acceso_tgi", "concedido");
+    } else {
+        alert("Clave incorrecta. No puede acceder al sistema.");
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:50px;'>Acceso Denegado</h1>";
+        throw new Error("Acceso denegado"); // Detiene la ejecución del mapa
+    }
+}
+// 1. INICIALIZACIÓN INMEDIATA DEL MAPA
 const map = L.map('map').setView([-34.268, -62.712], 15);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
