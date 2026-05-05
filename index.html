@@ -6,56 +6,83 @@
     <title>TGI - Municipalidad de Rufino</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; background: #f0f0f0; }
 
-        .buscador-flotante {
+        /* Panel Izquierdo */
+        .panel-izquierdo {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: white; padding: 15px; width: 280px; 
-            max-height: 90vh; overflow-y: auto; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            background: white; padding: 15px; width: 260px;
+            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-height: 90vh; overflow-y: auto;
         }
 
-        h2 { font-size: 14px; margin: 0 0 10px 0; color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
+        /* Panel Derecho con Botón Colapsable */
+        .panel-derecho {
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            background: white; width: 280px;
+            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .header-panel { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 2px solid #3498db; }
+        .btn-toggle { background: none; border: none; font-size: 18px; cursor: pointer; color: #3498db; padding: 0 5px; }
+        .cuerpo-panel { padding: 15px; }
 
-        #listaSugerencias {
-            background: white; border: 1px solid #ddd; border-top: none;
-            max-height: 200px; overflow-y: auto; display: none; margin-bottom: 10px;
+        /* Nuevo Panel: Estadísticas de Calle (Abajo Izquierda) */
+        #panelEstadisticaCalle {
+            display: none; background: white; margin-top: 15px;
+            padding: 15px; border-radius: 12px; border-left: 5px solid #00fbff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h2 { font-size: 13px; margin: 0; color: #2c3e50; text-transform: uppercase; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 5px; }
+
+        #listaSugerencias, #listaSugerenciasCalle { 
+            background: white; border: 1px solid #ddd; border-top: none; 
+            max-height: 180px; overflow-y: auto; display: none; margin-bottom: 10px;
         }
         .item-sugerencia { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 11px; }
         .item-sugerencia:hover { background: #f8f9fa; color: #3498db; }
-        .resaltado { background-color: #ffeaa7; font-weight: bold; }
 
-        .btn-stats { width: 100%; padding: 8px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px; }
-        #areaGrafico { display: none; background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-top: 10px; }
+        .lote-calle-resaltada { stroke: #00fbff !important; stroke-width: 6px !important; stroke-opacity: 1 !important; fill-opacity: 0.8 !important; z-index: 1000 !important; }
+
+        .etiqueta-porcentaje { font-size: 10px; font-weight: bold; color: #7f8c8d; margin-top: 5px; display: block; }
+        .barra-progreso { background: #eee; border-radius: 4px; height: 8px; width: 100%; margin-top: 2px; overflow: hidden; }
+        .progreso-llenado { height: 100%; }
 
         #contenidoFicha { display: none; margin-top: 15px; border-top: 2px solid #3498db; padding-top: 10px; position: relative; font-size: 11px; }
         .btn-cerrar-ficha { position: absolute; top: 5px; right: 0; background: #e74c3c; color: white; border: none; width: 22px; height: 22px; cursor: pointer; border-radius: 4px; }
-
-        .etiqueta { font-weight: bold; color: #7f8c8d; text-transform: uppercase; font-size: 9px; display: block; }
-        .valor { font-weight: 600; color: #2c3e50; }
-        .vencer { background: #f1c40f; padding: 2px 5px; border-radius: 3px; }
-        .deuda { background: #e74c3c; color: white; padding: 2px 5px; border-radius: 3px; }
-
-        @keyframes parpadear {
-            0% { fill-opacity: 0.2; stroke-width: 2; stroke: white; }
-            50% { fill-opacity: 1; stroke-width: 10; stroke: #fff; }
-            100% { fill-opacity: 0.2; stroke-width: 2; stroke: white; }
-        }
-        .lote-parpadeando { animation: parpadear 0.5s ease-in-out 5 !important; stroke: white !important; stroke-opacity: 1 !important; }
     </style>
 </head>
 <body>
-    <div class="buscador-flotante">
-        <h2>MUNICIPALIDAD DE RUFINO</h2>
-        <input type="text" id="inputApellido" placeholder="🔎 Buscar Apellido o Partida..." autocomplete="off">
+    <div class="panel-izquierdo">
+        <h2>Búsquedas</h2>
+        <input type="text" id="inputApellido" placeholder="🔎 Apellido o Partida..." autocomplete="off">
         <div id="listaSugerencias"></div>
-        <button id="btnToggleStats" class="btn-stats">📊 Ver Estadísticas</button>
-        <div id="areaGrafico">
+        
+        <input type="text" id="inputCalle" placeholder="🛣️ Nombre de Calle..." autocomplete="off" style="margin-top: 10px;">
+        <div id="listaSugerenciasCalle"></div>
+        
+        <div id="contenidoFicha"></div>
+
+        <div id="panelEstadisticaCalle">
+            <h2 style="font-size: 11px; border-bottom: 1px solid #00fbff; padding-bottom: 5px;">Análisis de Calle</h2>
+            <div id="statsCalleContenido"></div>
+            <canvas id="graficoCalle" height="120" style="margin-top:10px;"></canvas>
+        </div>
+    </div>
+
+    <div class="panel-derecho" id="panelD">
+        <div class="header-panel">
+            <h2>Estado General</h2>
+            <button class="btn-toggle" onclick="togglePanelDerecho()" id="btnT">➖</button>
+        </div>
+        <div class="cuerpo-panel" id="cuerpoD">
             <canvas id="graficoBarras" height="180"></canvas>
         </div>
-        <div id="contenidoFicha"></div>
     </div>
+
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
