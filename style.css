@@ -1,10 +1,3 @@
-Aquí tienes el bloque de Style final adaptado para la nueva distribución de doble panel.
-
-Este código incluye la posición fija para el Panel Izquierdo (Búsqueda), el Panel Derecho (Calle y Gráfico), y el efecto de Resaltado Cian para los lotes de la calle seleccionada.
-
-Copia y pega esto dentro de las etiquetas <style></style> en tu index.html:
-CSS
-
 <style>
     /* Estilos base del Mapa */
     html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
