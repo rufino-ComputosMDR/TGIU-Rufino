@@ -27,14 +27,13 @@
         .btn-toggle { background: none; border: none; font-size: 18px; cursor: pointer; color: #3498db; }
         .cuerpo-panel { padding: 15px; }
 
-        /* Panel Análisis de Calle */
-        #panelEstadisticaCalle {
-            display: none; background: #f8f9fa; margin-top: 15px;
-            padding: 12px; border-radius: 10px; border-left: 5px solid #00fbff;
-        }
+        /* Paneles de Análisis */
+        #panelEstadisticaCalle { display: none; background: #f8f9fa; margin-top: 15px; padding: 12px; border-radius: 10px; border-left: 5px solid #00fbff; }
+        #panelEstadisticaObra { display: none; background: #f8f9fa; margin-top: 15px; padding: 12px; border-radius: 10px; border-left: 5px solid #e67e22; position: relative; }
 
         h2 { font-size: 12px; margin: 0; color: #2c3e50; text-transform: uppercase; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 5px; }
+        select { background-color: white; color: #2c3e50; cursor: pointer; }
 
         #listaSugerencias, #listaSugerenciasCalle { 
             background: white; border: 1px solid #ddd; border-top: none; 
@@ -50,19 +49,43 @@
         #contenidoFicha { display: none; margin-top: 15px; border-top: 2px solid #3498db; padding-top: 10px; position: relative; font-size: 11px; }
         .btn-cerrar-ficha { position: absolute; top: 5px; right: 0; background: #e74c3c; color: white; border: none; width: 22px; height: 22px; cursor: pointer; border-radius: 4px; }
         
-        .lote-calle-resaltada { stroke: #00fbff !important; stroke-width: 6px !important; stroke-opacity: 1 !important; fill-opacity: 0.8 !important; z-index: 1000 !important; }
+        /* Modificado aquí para hacer las líneas celestes más finas */
+        .lote-calle-resaltada { stroke: #00fbff !important; stroke-width: 2px !important; stroke-opacity: 1 !important; fill-opacity: 0.4 !important; z-index: 1000 !important; }
+        
         @keyframes parpadear { 0% { fill-opacity: 0.2; } 50% { fill-opacity: 1; } 100% { fill-opacity: 0.2; } }
         .lote-parpadeando { animation: parpadear 0.5s ease-in-out 5 !important; stroke: white !important; stroke-width: 5px !important; z-index: 1500 !important; }
+        
+        /* Ficha Estilos Extra */
+        .etiqueta { font-weight: bold; color: #7f8c8d; }
+        .valor { color: #2c3e50; margin-left: 5px; }
+        .deuda { color: #e74c3c; font-weight: bold; }
+        .vencer { color: #f1c40f; font-weight: bold; }
+
+        /* Botón de Previsualización */
+        #btnImprimirObra {
+            width: 100%; margin-top: 15px; padding: 10px; background: #d35400; color: white; 
+            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+            display: none; transition: background 0.3s;
+        }
+        #btnImprimirObra:hover { background: #e67e22; }
     </style>
 </head>
 <body>
     <div class="panel-izquierdo">
-        <h2>Búsquedas</h2>
-        <input type="text" id="inputApellido" placeholder="🔎 Apellido o Partida..." autocomplete="off">
+        <h2>Búsquedas y Filtros</h2>
+        <input type="text" id="inputApellido" placeholder="🔎 Apellido o Nro. Padrón..." autocomplete="off">
         <div id="listaSugerencias"></div>
         
         <input type="text" id="inputCalle" placeholder="🛣️ Nombre de Calle..." autocomplete="off" style="margin-top: 10px;">
         <div id="listaSugerenciasCalle"></div>
+
+        <select id="selectSeccion" style="margin-top: 10px;">
+            <option value="">🧱 Seleccionar Sección...</option>
+        </select>
+
+        <select id="selectObra" style="margin-top: 10px; border-color: #e67e22;">
+            <option value="">🚧 Seleccionar Obra...</option>
+        </select>
         
         <div id="contenidoFicha"></div>
 
@@ -73,11 +96,20 @@
                 <canvas id="graficoCalle"></canvas>
             </div>
         </div>
+
+        <div id="panelEstadisticaObra">
+            <h2 style="font-size: 11px; color: #d35400;">INFORME DE OBRA PÚBLICA</h2>
+            <div id="statsObraContenido"></div>
+            <div style="height: 120px; margin-top: 10px;">
+                <canvas id="graficoObra"></canvas>
+            </div>
+            <button id="btnImprimirObra">📄 Previsualizar Listado</button>
+        </div>
     </div>
 
     <div class="panel-derecho" id="panelD">
         <div class="header-panel">
-            <h2>Estado General</h2>
+            <h2>Estado TGI General</h2>
             <button class="btn-toggle" onclick="togglePanelDerecho()" id="btnT">➖</button>
         </div>
         <div class="cuerpo-panel" id="cuerpoD">
