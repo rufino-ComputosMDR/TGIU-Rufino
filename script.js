@@ -1,12 +1,4 @@
-﻿// 1. CONTROL DE ACCESO
-const CLAVE_CORRECTA = "Rufino2026"; 
-if (sessionStorage.getItem("acceso_tgi") !== "concedido") {
-    let intento = prompt("Clave de acceso:");
-    if (intento === CLAVE_CORRECTA) { sessionStorage.setItem("acceso_tgi", "concedido"); } 
-    else { alert("Denegado"); document.body.innerHTML = "Denegado"; throw new Error(); }
-}
-
-const map = L.map('map').setView([-34.268, -62.712], 15);
+﻿const map = L.map('map').setView([-34.268, -62.712], 15);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
 // Variables Globales
@@ -49,6 +41,7 @@ function estiloManzanaPorSeccion(feature) {
     return { color: colorSeccion, fillColor: colorSeccion, weight: 1.5, fillOpacity: 0.12, dashArray: '3' };
 }
 
+// Clasificación de lotes según su deuda de TGI
 function estiloLote(f) {
     const deu = limpiarMontoDeuda(f.properties);
     const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
@@ -57,21 +50,30 @@ function estiloLote(f) {
     return { color: col, fillColor: col, weight: 1, fillOpacity: 0.6 };
 }
 
-// 2. CARGA DE DATOS
+// 2. CARGA DE DATOS (Con trazabilidad para diagnóstico de manzanas)
 async function cargarDatos() {
     try {
+        console.log("Intentando cargar manzanas.geojson...");
         const resM = await fetch('manzanas.geojson');
         if (resM.ok) {
             const dataM = await resM.json();
+            console.log("¡Manzanas cargadas con éxito!", dataM);
+            
             L.geoJSON(dataM, { 
                 style: estiloManzanaPorSeccion,
                 onEachFeature: (f, l) => {
-                    const sec = buscarProp(f.properties, "Seccion");
-                    if(sec) l.bindTooltip(`Sección ${sec}`, { sticky: true, opacity: 0.7 });
+                    const sec = buscarProp(f.properties, "Seccion") || buscarProp(f.properties, "Sector") || buscarProp(f.properties, "Zona");
+                    if(sec) {
+                        l.bindTooltip(`Sección ${sec}`, { sticky: true, opacity: 0.7 });
+                    }
                 }
             }).addTo(map);
+        } else {
+            console.error("El archivo manzanas.geojson no devolvió un estado OK. Código:", resM.status);
         }
-    } catch (e) { console.warn("No se cargaron manzanas.", e); }
+    } catch (e) { 
+        console.warn("Error crítico al renderizar manzanas.geojson.", e); 
+    }
 
     try {
         const resT = await fetch('tgi.geojson');
@@ -204,11 +206,67 @@ function actualizarGraficoGeneral(features) {
         const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
         if (deu <= 0) s++; else if (mes === 1) v++; else d++;
     });
+    
+    const total = s + v + d;
+
     if (miGraficoG) miGraficoG.destroy();
     miGraficoG = new Chart(document.getElementById('graficoBarras'), {
         type: 'bar',
-        data: { labels: ['Al Día', 'A Vencer', 'Deuda'], datasets: [{ data: [s, v, d], backgroundColor: ['#bdc3c7', '#f1c40f', '#e74c3c'], borderRadius: 4 }] },
-        options: { indexAxis: 'y', plugins: { legend: false }, maintainAspectRatio: false }
+        data: { 
+            labels: ['Al Día', 'A Vencer', 'Deuda'], 
+            datasets: [{ data: [s, v, d], backgroundColor: ['#bdc3c7', '#f1c40f', '#e74c3c'], borderRadius: 4 }] 
+        },
+        options: { 
+            indexAxis: 'y', 
+            plugins: { 
+                legend: false,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const valor = context.raw;
+                            const porcentaje = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
+                            return ` ${valor} (${porcentaje}%)`;
+                        }
+                    }
+                }
+            }, 
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { display: false }, 
+                    border: { display: false }
+                },
+                y: {
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: { color: '#2c3e50', font: { weight: 'bold', size: 11 } }
+                }
+            }
+        },
+        plugins: [{
+            id: 'porcentajesAlFinalDeBarra',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                ctx.save();
+                ctx.font = 'bold 11px sans-serif';
+                ctx.fillStyle = '#2c3e50';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                chart.getDatasetMeta(0).data.forEach((bar, index) => {
+                    const valor = data.datasets[0].data[index];
+                    const porcentaje = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
+                    const textoAMostrar = `${valor} (${porcentaje}%)`;
+                    
+                    const posicionX = bar.x + 8; 
+                    const posicionY = bar.y;
+                    
+                    ctx.fillText(textoAMostrar, posicionX, posicionY);
+                });
+                ctx.restore();
+            }
+        }]
     });
 }
 
@@ -218,7 +276,8 @@ window.seleccionarLotePorPadron = function(padronVal) {
         return String(idP) === String(padronVal);
     });
     if (lote) {
-        document.getElementById('listaSugerencias').style.display = "none";
+        const listaSug = document.getElementById('listaSugerencias');
+        if (listaSug) listaSug.style.display = "none";
         document.getElementById('inputApellido').value = buscarProp(lote.properties, "Tit. Nombre");
         map.fitBounds(L.geoJSON(lote).getBounds(), { maxZoom: 19 });
         mostrarFicha(lote.properties);
@@ -362,14 +421,13 @@ function generarEstadisticaObra(features, nombre) {
     });
 }
 
-// 8. GENERADOR DEL LISTADO DE PREVISUALIZACIÓN (Ordenado de mayor a menor deuda)
+// 8. GENERADOR DEL LISTADO DE PREVISUALIZACIÓN (Ordenado y con enlaces interactivos)
 document.getElementById('btnImprimirObra').onclick = function() {
     if (!lotesObraActual || lotesObraActual.length === 0) return;
 
     let HTMLFilasObra = "";
     let sumaTotal = 0;
 
-    // Clonamos el array original y lo ordenamos descendente según el monto de 'Deuda Obra'
     const lotesOrdenados = [...lotesObraActual].sort((a, b) => {
         const deudaA = limpiarMontoGenerico(buscarProp(a.properties, "Deuda Obra"));
         const deudaB = limpiarMontoGenerico(buscarProp(b.properties, "Deuda Obra"));
@@ -391,8 +449,8 @@ document.getElementById('btnImprimirObra').onclick = function() {
 
         HTMLFilasObra += `
             <tr>
-                <td>${padronVal}</td>
-                <td>${nombre}</td>
+                <td><a href="#" class="link-padron" onclick="window.opener.seleccionarLotePorPadron('${padronVal}'); return false;">${padronVal}</a></td>
+                <td><strong>${nombre}</strong></td>
                 <td>${domicilio}</td>
                 <td style="text-align:center;">${cuotasAtr}</td>
                 <td style="text-align:right; ${estiloFila}">${deudaTxt}</td>
@@ -419,6 +477,9 @@ document.getElementById('btnImprimirObra').onclick = function() {
             .total-texto { font-size: 14px; font-weight: bold; color: #d35400; }
             .total-numero { font-size: 18px; font-weight: bold; color: #e74c3c; margin-left: 10px; }
             
+            .link-padron { color: #3498db; text-decoration: none; font-weight: bold; }
+            .link-padron:hover { text-decoration: underline; color: #2980b9; }
+
             .btn-imprimir-flotante {
                 position: fixed; top: 20px; right: 30px; padding: 12px 24px; 
                 background: #d35400; color: white; border: none; cursor: pointer; 
@@ -432,6 +493,7 @@ document.getElementById('btnImprimirObra').onclick = function() {
                 .contenedor-a4 { box-shadow: none; padding: 0; max-width: 100%; }
                 @page { margin: 1cm; size: A4 portrait; }
                 .btn-imprimir-flotante { display: none !important; }
+                .link-padron { color: #333 !important; pointer-events: none; }
             }
         </style>
     </head>
