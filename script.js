@@ -1,10 +1,16 @@
 ﻿const map = L.map('map').setView([-34.268, -62.712], 15);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 21,
+    maxNativeZoom: 19
+}).addTo(map);
 
 // Variables Globales
 let datosTgi, capaTgi, miGraficoG, miGraficoC, miGraficoO;
 let lotesObraActual = []; 
 let nombreObraActual = ""; 
+
+// Arreglo global para almacenar los hilos y medidas de todos los lados dibujados
+let lineasLadosActuales = [];
 
 // Helpers para mapeo inteligente de propiedades
 function buscarProp(obj, texto) {
@@ -50,30 +56,22 @@ function estiloLote(f) {
     return { color: col, fillColor: col, weight: 1, fillOpacity: 0.6 };
 }
 
-// 2. CARGA DE DATOS (Con trazabilidad para diagnóstico de manzanas)
+// 2. CARGA DE DATOS
 async function cargarDatos() {
     try {
         console.log("Intentando cargar manzanas.geojson...");
         const resM = await fetch('manzanas.geojson');
         if (resM.ok) {
             const dataM = await resM.json();
-            console.log("¡Manzanas cargadas con éxito!", dataM);
-            
             L.geoJSON(dataM, { 
                 style: estiloManzanaPorSeccion,
                 onEachFeature: (f, l) => {
                     const sec = buscarProp(f.properties, "Seccion") || buscarProp(f.properties, "Sector") || buscarProp(f.properties, "Zona");
-                    if(sec) {
-                        l.bindTooltip(`Sección ${sec}`, { sticky: true, opacity: 0.7 });
-                    }
+                    if(sec) { l.bindTooltip(`Sección ${sec}`, { sticky: true, opacity: 0.7 }); }
                 }
             }).addTo(map);
-        } else {
-            console.error("El archivo manzanas.geojson no devolvió un estado OK. Código:", resM.status);
         }
-    } catch (e) { 
-        console.warn("Error crítico al renderizar manzanas.geojson.", e); 
-    }
+    } catch (e) { console.warn("Error renderizando manzanas.geojson.", e); }
 
     try {
         const resT = await fetch('tgi.geojson');
@@ -90,9 +88,114 @@ function dibujarMapa(features) {
     capaTgi = L.geoJSON({type: "FeatureCollection", features: features}, {
         style: estiloLote,
         onEachFeature: (f, l) => {
-            l.on('click', (e) => { L.DomEvent.stopPropagation(e); mostrarFicha(f.properties); });
+            l.on('click', (e) => { 
+                L.DomEvent.stopPropagation(e); 
+                mostrarFicha(f.properties); 
+
+                // 1. Súper Zoom inmediato al polígono seleccionado
+                map.fitBounds(l.getBounds(), { maxZoom: 20, padding: [50, 50], animate: true });
+
+                // 2. Limpiamos las líneas y medidas anteriores
+                limpiarMedidasLote();
+
+                if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
+                    const coords = f.geometry.type === 'Polygon' 
+                        ? f.geometry.coordinates[0] 
+                        : f.geometry.coordinates[0][0];
+
+                    if (coords && coords.length >= 3) {
+                        const centroLote = l.getBounds().getCenter();
+                        let puntosLimpios = [];
+
+                        // Paso A: Filtramos puntos duplicados consecutivos
+                        for (let i = 0; i < coords.length; i++) {
+                            let p = L.latLng(coords[i][1], coords[i][0]);
+                            if (puntosLimpios.length === 0 || puntosLimpios[puntosLimpios.length - 1].distanceTo(p) > 0.2) {
+                                puntosLimpios.push(p);
+                            }
+                        }
+                        // Asegurar el cierre del anillo poligonal
+                        if (puntosLimpios[0].distanceTo(puntosLimpios[puntosLimpios.length - 1]) > 0.2) {
+                            puntosLimpios.push(puntosLimpios[0]);
+                        }
+
+                        // Paso B: Algoritmo de consolidación de tramos rectos colineales (Fusión de rectas consecutivas)
+                        let ladosConsolidados = [];
+                        let pInicio = puntosLimpios[0];
+
+                        for (let i = 0; i < puntosLimpios.length - 1; i++) {
+                            let pActual = puntosLimpios[i];
+                            let pSiguiente = puntosLimpios[i + 1];
+                            let pFuturo = puntosLimpios[i + 2] || puntosLimpios[1];
+
+                            // Calculamos el ángulo/rumbo de las dos líneas consecutivas
+                            let azimut1 = Math.atan2(pSiguiente.lng - pActual.lng, pSiguiente.lat - pActual.lat);
+                            let azimut2 = Math.atan2(pFuturo.lng - pSiguiente.lng, pFuturo.lat - pSiguiente.lat);
+
+                            // Si la diferencia de ángulo es casi cero (tolerancia de 6 grados por errores de dibujo), pertenecen a la misma recta
+                            let diferenciaAngulo = Math.abs(azimut1 - azimut2);
+                            if (diferenciaAngulo > Math.PI) diferenciaAngulo = (Math.PI * 2) - diferenciaAngulo;
+
+                            const esColineal = diferenciaAngulo < 0.1; // ~6 grados de tolerancia
+
+                            if (!esColineal) {
+                                // Termina una recta real, guardamos el lado completo acumulado
+                                ladosConsolidados.push({ desde: pInicio, hasta: pSiguiente });
+                                pInicio = pSiguiente; // La siguiente línea arranca acá
+                            }
+                        }
+                        // Agregar el último tramo de cierre
+                        if (pInicio !== puntosLimpios[puntosLimpios.length - 1]) {
+                            ladosConsolidados.push({ desde: pInicio, hasta: puntosLimpios[puntosLimpios.length - 1] });
+                        }
+
+                        // Paso C: Dibujar y rotular los lados definitivos procesados
+                        ladosConsolidados.forEach(lado => {
+                            const distanciaTotalLado = lado.desde.distanceTo(lado.hasta);
+
+                            // Ignorar micro-segmentos residuales menores a 1 metro
+                            if (distanciaTotalLado < 1.0) return;
+
+                            // Texto formateado (ej: "12.4 m")
+                            const textoMetros = `${distanciaTotalLado.toFixed(1)} m`;
+
+                            // Calcular el punto medio exacto de este lado
+                            const latMedio = (lado.desde.lat + lado.hasta.lat) / 2;
+                            const lngMedio = (lado.desde.lng + lado.hasta.lng) / 2;
+                            const puntoMedioLado = L.latLng(latMedio, lngMedio);
+
+                            // NUEVO: Empujamos el punto de la etiqueta un 15% hacia el INTERIOR del lote
+                            const factorDesplazamiento = 0.15;
+                            const latTooltip = puntoMedioLado.lat + (centroLote.lat - puntoMedioLado.lat) * factorDesplazamiento;
+                            const lngTooltip = puntoMedioLado.lng + (centroLote.lng - puntoMedioLado.lng) * factorDesplazamiento;
+                            const posicionTooltipInterno = L.latLng(latTooltip, lngTooltip);
+
+                            // Dibujar la línea visual resaltada sobre el mapa
+                            const dibujoLado = L.polyline([lado.desde, lado.hasta], {
+                                color: '#2c3e50',
+                                weight: 3,
+                                opacity: 0.85
+                            }).addTo(map);
+
+                            // Inyectar el Tooltip apuntando a la posición interna calculada
+                            dibujoLado.bindTooltip(textoMetros, {
+                                permanent: true,
+                                direction: 'center',
+                                className: 'tooltip-borde-lineal-perimetro'
+                            }).openTooltip(posicionTooltipInterno);
+
+                            lineasLadosActuales.push(dibujoLado);
+                        });
+                    }
+                }
+            });
         }
     }).addTo(map);
+}
+
+function limpiarMedidasLote() {
+    lineasLadosActuales.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+    lineasLadosActuales = [];
 }
 
 // 3. FILTRADOS
@@ -101,6 +204,8 @@ function filtrarTodo() {
     const calleInput = document.getElementById('inputCalle').value.toLowerCase();
     const sugApp = document.getElementById('listaSugerencias');
     const sugCalle = document.getElementById('listaSugerenciasCalle');
+
+    limpiarMedidasLote();
 
     document.getElementById('selectSeccion').value = "";
     document.getElementById('selectObra').value = "";
@@ -147,6 +252,7 @@ document.getElementById('inputCalle').oninput = filtrarTodo;
 
 // 4. ACCIONES DE SELECCIÓN
 window.seleccionarCalle = function(nombreCalleLimpia) {
+    limpiarMedidasLote();
     document.getElementById('inputCalle').value = nombreCalleLimpia;
     document.getElementById('listaSugerenciasCalle').style.display = "none";
     const lotesCalle = datosTgi.features.filter(f => {
@@ -206,7 +312,6 @@ function actualizarGraficoGeneral(features) {
         const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
         if (deu <= 0) s++; else if (mes === 1) v++; else d++;
     });
-    
     const total = s + v + d;
 
     if (miGraficoG) miGraficoG.destroy();
@@ -220,49 +325,22 @@ function actualizarGraficoGeneral(features) {
             indexAxis: 'y', 
             plugins: { 
                 legend: false,
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const valor = context.raw;
-                            const porcentaje = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
-                            return ` ${valor} (${porcentaje}%)`;
-                        }
-                    }
-                }
+                tooltip: { callbacks: { label: (c) => ` ${c.raw} (${total > 0 ? ((c.raw / total) * 100).toFixed(1) : 0}%)` } }
             }, 
             maintainAspectRatio: false,
             scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { display: false }, 
-                    border: { display: false }
-                },
-                y: {
-                    grid: { display: false },
-                    border: { display: false },
-                    ticks: { color: '#2c3e50', font: { weight: 'bold', size: 11 } }
-                }
+                x: { grid: { display: false }, ticks: { display: false }, border: { display: false } },
+                y: { grid: { display: false }, border: { display: false }, ticks: { color: '#2c3e50', font: { weight: 'bold', size: 11 } } }
             }
         },
         plugins: [{
             id: 'porcentajesAlFinalDeBarra',
             afterDatasetsDraw(chart) {
-                const { ctx, data } = chart;
-                ctx.save();
-                ctx.font = 'bold 11px sans-serif';
-                ctx.fillStyle = '#2c3e50';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-
-                chart.getDatasetMeta(0).data.forEach((bar, index) => {
-                    const valor = data.datasets[0].data[index];
-                    const porcentaje = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
-                    const textoAMostrar = `${valor} (${porcentaje}%)`;
-                    
-                    const posicionX = bar.x + 8; 
-                    const posicionY = bar.y;
-                    
-                    ctx.fillText(textoAMostrar, posicionX, posicionY);
+                const { ctx, data } = chart; ctx.save(); ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#2c3e50'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                chart.getDatasetMeta(0).data.forEach((bar, idx) => {
+                    const val = data.datasets[0].data[idx];
+                    const porc = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                    ctx.fillText(`${val} (${porc}%)`, bar.x + 8, bar.y);
                 });
                 ctx.restore();
             }
@@ -276,18 +354,12 @@ window.seleccionarLotePorPadron = function(padronVal) {
         return String(idP) === String(padronVal);
     });
     if (lote) {
-        const listaSug = document.getElementById('listaSugerencias');
-        if (listaSug) listaSug.style.display = "none";
+        document.getElementById('listaSugerencias').style.display = "none";
         document.getElementById('inputApellido').value = buscarProp(lote.properties, "Tit. Nombre");
-        map.fitBounds(L.geoJSON(lote).getBounds(), { maxZoom: 19 });
         mostrarFicha(lote.properties);
         capaTgi.eachLayer(l => {
             const idL = buscarProp(l.feature.properties, "Padron") || buscarProp(l.feature.properties, "Contribuyente");
-            if (String(idL) === String(padronVal)) {
-                l.bringToFront();
-                const el = l._path;
-                if (el) { el.classList.remove('lote-parpadeando'); void el.offsetWidth; el.classList.add('lote-parpadeando'); }
-            }
+            if (String(idL) === String(padronVal)) { l.bringToFront(); l.fire('click'); }
         });
     }
 };
@@ -296,7 +368,6 @@ function mostrarFicha(p) {
     const div = document.getElementById('contenidoFicha');
     const d = limpiarMontoDeuda(p);
     const m = parseInt(buscarProp(p, "Meses Adeud.TGI")) || 0;
-    
     const padronDetectado = buscarProp(p, "Padron") || "-";
     const domicilioDetectado = buscarProp(p, "Ubicacion") || "-";
     let est = (d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA';
@@ -307,17 +378,12 @@ function mostrarFicha(p) {
                 <p><span class="etiqueta">Nro. Padrón:</span> <span class="valor" style="font-weight:bold; color:#2c3e50;">${padronDetectado}</span></p>
                 <p><span class="etiqueta">Domicilio:</span> <span class="valor">${domicilioDetectado}</span></p>
                 <hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">`;
-                
-    for (let k in p) { 
-        html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${p[k] || '-'}</span></p>`; 
-    }
-    
-    div.innerHTML = html; 
-    div.style.display = "block";
+    for (let k in p) { html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${p[k] || '-'}</span></p>`; }
+    div.innerHTML = html; div.style.display = "block";
 }
-window.cerrarFicha = () => { document.getElementById('contenidoFicha').style.display = "none"; };
 
-// 6. MENÚ DE SECCIONES
+window.cerrarFicha = () => { document.getElementById('contenidoFicha').style.display = "none"; limpiarMedidasLote(); };
+
 function inicializarDesplegableSecciones(features) {
     const select = document.getElementById('selectSeccion');
     let seccionesUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Seccion") || "").trim()))].filter(s => s !== "").sort((a, b) => (parseInt(a) || a) - (parseInt(b) || b));
@@ -327,82 +393,50 @@ function inicializarDesplegableSecciones(features) {
 
 document.getElementById('selectSeccion').onchange = function() {
     const numSeccion = this.value;
-    document.getElementById('inputApellido').value = "";
-    document.getElementById('inputCalle').value = "";
-    document.getElementById('selectObra').value = ""; 
-    document.getElementById('panelEstadisticaCalle').style.display = "none";
-    document.getElementById('panelEstadisticaObra').style.display = "none";
-    document.getElementById('btnImprimirObra').style.display = "none";
-
+    limpiarMedidasLote();
+    document.getElementById('inputApellido').value = ""; document.getElementById('inputCalle').value = ""; document.getElementById('selectObra').value = ""; 
+    document.getElementById('panelEstadisticaCalle').style.display = "none"; document.getElementById('panelEstadisticaObra').style.display = "none"; document.getElementById('btnImprimirObra').style.display = "none";
     if (!numSeccion) { dibujarMapa(datosTgi.features); actualizarGraficoGeneral(datosTgi.features); return; }
     const lotesSeccion = datosTgi.features.filter(f => String(buscarProp(f.properties, "Seccion") || "").trim() === numSeccion);
     dibujarMapa(lotesSeccion); actualizarGraficoGeneral(lotesSeccion);
-    capaTgi.eachLayer(l => { l.bringToFront(); if (l._path) l._path.classList.add('lote-calle-resaltada'); });
     if (capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
 };
 
-// 7. MENÚ E INFORMES DE OBRAS PÚBLICAS
 function inicializarDesplegableObras(features) {
     const select = document.getElementById('selectObra');
-    let obrasUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Obras") || "").trim()))]
-        .filter(o => o !== "" && o.toLowerCase() !== "null");
-    
-    obrasUnicas.sort();
+    let obrasUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Obras") || "").trim()))].filter(o => o !== "" && o.toLowerCase() !== "null").sort();
     select.innerHTML = '<option value="">🚧 Seleccionar Obra...</option>';
-    obrasUnicas.forEach(o => {
-        const option = document.createElement('option'); option.value = o; option.textContent = o; select.appendChild(option);
-    });
+    obrasUnicas.forEach(o => { const option = document.createElement('option'); option.value = o; option.textContent = o; select.appendChild(option); });
 }
 
 document.getElementById('selectObra').onchange = function() {
     nombreObraActual = this.value; 
-    const panelObra = document.getElementById('panelEstadisticaObra');
-    const btnPrint = document.getElementById('btnImprimirObra');
-
-    document.getElementById('inputApellido').value = "";
-    document.getElementById('inputCalle').value = "";
-    document.getElementById('selectSeccion').value = "";
+    limpiarMedidasLote();
+    document.getElementById('inputApellido').value = ""; document.getElementById('inputCalle').value = ""; document.getElementById('selectSeccion').value = "";
     document.getElementById('panelEstadisticaCalle').style.display = "none";
-
     if (!nombreObraActual) {
-        panelObra.style.display = "none";
-        btnPrint.style.display = "none"; 
-        dibujarMapa(datosTgi.features);
-        actualizarGraficoGeneral(datosTgi.features);
-        return;
+        document.getElementById('panelEstadisticaObra').style.display = "none"; document.getElementById('btnImprimirObra').style.display = "none"; 
+        dibujarMapa(datosTgi.features); actualizarGraficoGeneral(datosTgi.features); return;
     }
-
     lotesObraActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Obras") || "").trim() === nombreObraActual); 
-
-    dibujarMapa(lotesObraActual);
-    actualizarGraficoGeneral(lotesObraActual);
-    generarEstadisticaObra(lotesObraActual, nombreObraActual);
-
-    capaTgi.eachLayer(l => { l.bringToFront(); if (l._path) l._path.classList.add('lote-calle-resaltada'); });
+    dibujarMapa(lotesObraActual); actualizarGraficoGeneral(lotesObraActual); generarEstadisticaObra(lotesObraActual, nombreObraActual);
     if (capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
-
-    btnPrint.style.display = "block"; 
+    document.getElementById('btnImprimirObra').style.display = "block"; 
 };
 
 function generarEstadisticaObra(features, nombre) {
-    let alDia = 0, conDeuda = 0;
-    let sumaMontoDeudaObra = 0;
-
+    let alDia = 0, conDeuda = 0, sumaMontoDeudaObra = 0;
     features.forEach(f => {
-        const deudaObra = limpiarMontoGenerico(buscarProp(f.properties, "Deuda Obra"));
-        sumaMontoDeudaObra += deudaObra;
+        const deudaObra = limpiarMontoGenerico(buscarProp(f.properties, "Deuda Obra")); sumaMontoDeudaObra += deudaObra;
         const cuotasAtrasadas = parseInt(buscarProp(f.properties, "Cuotas Atrasadas")) || 0;
-        if (deudaObra <= 0 && cuotasAtrasadas <= 0) alDia++; 
-        else conDeuda++;
+        if (deudaObra <= 0 && cuotasAtrasadas <= 0) alDia++; else conDeuda++;
     });
-
     const total = features.length;
     const porcDeuda = total > 0 ? ((conDeuda / total) * 100).toFixed(1) : 0;
     const porcAlDia = total > 0 ? ((alDia / total) * 100).toFixed(1) : 0;
     const montoFormat = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sumaMontoDeudaObra);
 
-    const panel = document.getElementById('panelEstadisticaObra');
-    panel.style.display = "block";
+    document.getElementById('panelEstadisticaObra').style.display = "block";
     document.getElementById('statsObraContenido').innerHTML = `
         <p style="font-size:10px; margin:5px 0;">🚧 <strong>${nombre}</strong></p>
         <p style="font-size:11px; margin:0;">Lotes afectados: <strong>${total}</strong></p>
@@ -412,27 +446,18 @@ function generarEstadisticaObra(features, nombre) {
         <span class="etiqueta-porcentaje">VECINOS CON DEUDA: ${porcDeuda}%</span>
         <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcDeuda}%; background:#e74c3c;"></div></div>
     `;
-
     if (miGraficoO) miGraficoO.destroy();
     miGraficoO = new Chart(document.getElementById('graficoObra'), {
-        type: 'doughnut',
-        data: { datasets: [{ data: [alDia, conDeuda], backgroundColor: ['#2ecc71', '#e74c3c'], borderWidth: 0 }] },
+        type: 'doughnut', data: { datasets: [{ data: [alDia, conDeuda], backgroundColor: ['#2ecc71', '#e74c3c'], borderWidth: 0 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, cutout: '65%' }
     });
 }
 
-// 8. GENERADOR DEL LISTADO DE PREVISUALIZACIÓN (Ordenado y con enlaces interactivos)
+// 8. LISTADO DE PREVISUALIZACIÓN DE IMPRESIÓN
 document.getElementById('btnImprimirObra').onclick = function() {
     if (!lotesObraActual || lotesObraActual.length === 0) return;
-
-    let HTMLFilasObra = "";
-    let sumaTotal = 0;
-
-    const lotesOrdenados = [...lotesObraActual].sort((a, b) => {
-        const deudaA = limpiarMontoGenerico(buscarProp(a.properties, "Deuda Obra"));
-        const deudaB = limpiarMontoGenerico(buscarProp(b.properties, "Deuda Obra"));
-        return deudaB - deudaA;
-    });
+    let HTMLFilasObra = "", sumaTotal = 0;
+    const lotesOrdenados = [...lotesObraActual].sort((a, b) => limpiarMontoGenerico(buscarProp(b.properties, "Deuda Obra")) - limpiarMontoGenerico(buscarProp(a.properties, "Deuda Obra")));
 
     lotesOrdenados.forEach(f => {
         const p = f.properties;
@@ -441,101 +466,12 @@ document.getElementById('btnImprimirObra').onclick = function() {
         const domicilio = buscarProp(p, "Ubicacion") || "-";
         const cuotasAtr = parseInt(buscarProp(p, "Cuotas Atrasadas")) || 0;
         const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
-        
         sumaTotal += deuda;
-        
-        const deudaTxt = deuda > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuda) : "$ 0,00";
-        const estiloFila = deuda > 0 ? 'color: #e74c3c; font-weight: bold;' : '';
-
-        HTMLFilasObra += `
-            <tr>
-                <td><a href="#" class="link-padron" onclick="window.opener.seleccionarLotePorPadron('${padronVal}'); return false;">${padronVal}</a></td>
-                <td><strong>${nombre}</strong></td>
-                <td>${domicilio}</td>
-                <td style="text-align:center;">${cuotasAtr}</td>
-                <td style="text-align:right; ${estiloFila}">${deudaTxt}</td>
-            </tr>
-        `;
+        HTMLFilasObra += `<tr><td><a href="#" class=\"link-padron\" onclick=\"window.opener.seleccionarLotePorPadron('${padronVal}'); return false;\">${padronVal}</a></td><td><strong>${nombre}</strong></td><td>${domicilio}</td><td style=\"text-align:center;\">${cuotasAtr}</td><td style=\"text-align:right; ${deuda > 0 ? 'color: #e74c3c; font-weight: bold;' : ''}\">${deuda > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuda) : "$ 0,00"}</td></tr>`;
     });
 
-    const totalTxt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sumaTotal);
-
-    const htmlImpresion = `
-    <html>
-    <head>
-        <title>Previsualización - ${nombreObraActual}</title>
-        <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; background: #f4f6f9; }
-            .contenedor-a4 { background: white; max-width: 800px; margin: 0 auto; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 4px; }
-            .encabezado { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #d35400; padding-bottom: 10px; margin-bottom: 20px; }
-            h1 { color: #d35400; font-size: 20px; text-transform: uppercase; margin: 0; }
-            .fecha { font-size: 12px; color: #7f8c8d; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f8f9fa; color: #2c3e50; text-transform: uppercase; font-size: 10px; }
-            .total-caja { background: #fdf2e9; border: 1px solid #e67e22; padding: 15px; border-radius: 8px; text-align: right; }
-            .total-texto { font-size: 14px; font-weight: bold; color: #d35400; }
-            .total-numero { font-size: 18px; font-weight: bold; color: #e74c3c; margin-left: 10px; }
-            
-            .link-padron { color: #3498db; text-decoration: none; font-weight: bold; }
-            .link-padron:hover { text-decoration: underline; color: #2980b9; }
-
-            .btn-imprimir-flotante {
-                position: fixed; top: 20px; right: 30px; padding: 12px 24px; 
-                background: #d35400; color: white; border: none; cursor: pointer; 
-                font-weight: bold; font-size: 13px; border-radius: 6px; 
-                box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: background 0.2s;
-            }
-            .btn-imprimir-flotante:hover { background: #e67e22; }
-
-            @media print {
-                body { background: white; padding: 0; }
-                .contenedor-a4 { box-shadow: none; padding: 0; max-width: 100%; }
-                @page { margin: 1cm; size: A4 portrait; }
-                .btn-imprimir-flotante { display: none !important; }
-                .link-padron { color: #333 !important; pointer-events: none; }
-            }
-        </style>
-    </head>
-    <body>
-        <button class="btn-imprimir-flotante" onclick="window.print()">🖨️ Confirmar e Imprimir</button>
-        
-        <div class="contenedor-a4">
-            <div class="encabezado">
-                <div>
-                    <h1>Informe de Obra Pública</h1>
-                    <p style="margin: 5px 0 0 0; font-weight: bold;">🚧 ${nombreObraActual}</p>
-                </div>
-                <div class="fecha">Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}</div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nro. Padrón</th>
-                        <th>Titular / Contribuyente</th>
-                        <th>Domicilio</th>
-                        <th style="text-align:center;">Cuotas Atr.</th>
-                        <th style="text-align:right;">Deuda Obra</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${HTMLFilasObra}
-                </tbody>
-            </table>
-
-            <div class="total-caja">
-                <span class="total-texto">MONTO TOTAL ADEUDADO DE LA OBRA:</span>
-                <span class="total-numero">${totalTxt}</span>
-            </div>
-        </div>
-    </body>
-    </html>
-    `;
-
-    const ventana = window.open('', '_blank');
-    ventana.document.write(htmlImpresion);
-    ventana.document.close();
+    const htmlImpresion = `<html><head><title>Previsualización</title><style>body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #333; background: #f4f6f9; } .contenedor-a4 { background: white; max-width: 800px; margin: 0 auto; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); } table { width: 100%; border-collapse: collapse; font-size: 11px; } th, td { border: 1px solid #ddd; padding: 8px; } th { background: #f8f9fa; } .total-caja { background: #fdf2e9; border: 1px solid #e67e22; padding: 15px; text-align: right; font-weight: bold; } .btn-imprimir-flotante { position: fixed; top: 20px; right: 30px; padding: 12px 24px; background: #d35400; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 6px; } @media print { .btn-imprimir-flotante { display: none !important; } }</style></head><body><button class=\"btn-imprimir-flotante\" onclick=\"window.print()\">🖨️ Confirmar e Imprimir</button><div class=\"contenedor-a4\"><h2>Informe de Obra Pública</h2><p>🚧 <strong>${nombreObraActual}</strong></p><table><thead><tr><th>Nro. Padrón</th><th>Titular</th><th>Domicilio</th><th style=\"text-align:center;\">Cuotas Atr.</th><th style=\"text-align:right;\">Deuda Obra</th></tr></thead><tbody>${HTMLFilasObra}</tbody></table><div class=\"total-caja\">MONTO TOTAL ADEUDADO: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sumaTotal)}</div></div></body></html>`;
+    const ventana = window.open('', '_blank'); ventana.document.write(htmlImpresion); ventana.document.close();
 };
 
 cargarDatos();
