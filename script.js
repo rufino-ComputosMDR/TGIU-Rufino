@@ -10,7 +10,7 @@ let lotesObraActual = [];
 let nombreObraActual = ""; 
 let lineasLadosActuales = [];
 let mostrarBaldiosExclusivos = false; 
-let listadoLotesFiltroActual = []; // Mantiene registro de lo que hay mapeado
+let listadoLotesFiltroActual = [];
 
 // INTERRUPTOR DEL MENÚ HAMBURGUESA LATERAL
 window.togglePanelLateral = function() {
@@ -313,7 +313,6 @@ window.solicitarGraficoGeneral = function() {
     actualizarGraficoGeneral(listadoLotesFiltroActual);
 };
 
-// MODIFICADO: Ahora el gráfico usa un diseño de Torta (Doughnut) mucho más compacto y legible para espacios chicos
 function actualizarGraficoGeneral(features) {
     let s=0, v=0, d=0;
     features.forEach(f => {
@@ -392,6 +391,7 @@ window.seleccionarLotePorPadron = function(padronVal) {
     }
 };
 
+// CORREGIDO: Tratamiento de deudafecha como texto cronológico/fecha pura
 function mostrarFicha(p) {
     const panelFlotante = document.getElementById('panelFichaFlotante');
     const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
@@ -401,6 +401,9 @@ function mostrarFicha(p) {
     const padronDetectado = buscarProp(p, "Padron") || "-";
     const domicilioDetectado = buscarProp(p, "Ubicacion") || "-";
     
+    // Almacena el valor directo como una cadena de texto (ej: "30/06/2026")
+    const deudaFechaValor = buscarProp(p, "deudafecha") || "-";
+    
     let est = (d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA';
     
     let html = `<p><span class="etiqueta">Estado TGI:</span> <span class="valor">${est}</span></p>
@@ -409,33 +412,38 @@ function mostrarFicha(p) {
                 <hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">`;
     
     for (let k in p) { 
-        if(k.toLowerCase() !== "baldio") { 
+        const clavePrevia = k.toLowerCase();
+        // Filtramos para omitir baldio, nomenc, referencia y deudafecha del listado estándar
+        if(clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia" && clavePrevia !== "deudafecha") { 
             html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${p[k] || '-'}</span></p>`; 
         }
     }
+    
+    // Remate visual elegante, limpio y neutral apto para mostrar fechas de corte
+    html += `<hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">
+             <p style="font-size: 11px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 15px;">
+                <span class="etiqueta" style="color: #64748b;">Deudas a la Fecha:</span> 
+                <span class="valor" style="font-weight: bold; color: #334155;">${deudaFechaValor}</span>
+             </p>`;
     
     cuerpoFlotante.innerHTML = html;
     panelFlotante.style.display = "flex";
 }
 
-// MODIFICADO: Al cerrar la ficha técnica, limpia las cajas de inputs y restablece todo el mapa original
 window.cerrarFicha = () => { 
     document.getElementById('panelFichaFlotante').style.display = "none"; 
     limpiarMedidasLote(); 
     
-    // Resetear valores de entrada visuales
     document.getElementById('inputApellido').value = "";
     document.getElementById('inputCalle').value = "";
     document.getElementById('selectSeccion').value = "";
     document.getElementById('selectObra').value = "";
     
-    // Ocultar paneles complementarios
     document.getElementById('panelEstadisticaCalle').style.display = "none";
     document.getElementById('panelEstadisticaObra').style.display = "none";
     document.getElementById('btnImprimirObra').style.display = "none";
     ocultarContenedorGraficoGeneral();
 
-    // Restablecer el universo completo de lotes y reajustar vista del mapa
     if (datosTgi && datosTgi.features) {
         listadoLotesFiltroActual = datosTgi.features;
         dibujarMapa(datosTgi.features);
