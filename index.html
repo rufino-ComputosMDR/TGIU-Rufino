@@ -9,21 +9,7 @@
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f0f0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
 
-        /* PANTALLA DE CARGA (SPINNER) */
-        #pantallaCarga {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(255, 255, 255, 0.9); z-index: 9999; 
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.3s ease;
-        }
-        .spinner {
-            width: 50px; height: 50px; border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db; border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 15px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS */
+        /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS (PC) */
         .barra-superior {
             position: absolute; top: 10px; left: 10px; right: 10px; z-index: 2000;
             background: white; padding: 10px 15px; display: flex; align-items: center; gap: 10px;
@@ -109,13 +95,14 @@
         .deuda { color: #e74c3c; font-weight: bold; }
         .vencer { color: #f1c40f; font-weight: bold; }
 
-        .btn-filtro-baldios {
+        /* BOTONES DE LA BARRA SUPERIOR */
+        .btn-filtro-baldios, .btn-filtro-satelite {
             padding: 10px 15px; border: 1px solid #ccc; background: #fff;
             color: #333; border-radius: 6px; cursor: pointer; font-weight: bold;
             font-size: 12px; transition: all 0.2s; white-space: nowrap;
         }
         .btn-filtro-baldios.activo { background: #2ecc71; color: white; border-color: #27ae60; }
-        #btnToggleSatelital.activo-satelital { background: #34495e; color: white; border-color: #2c3e50; }
+        .btn-filtro-satelite.activo { background: #34495e; color: white; border-color: #2c3e50; }
 
         /* TOTALIZADOR CENTRADO ABAJO */
         .totalizador-baldios-flotante {
@@ -133,98 +120,30 @@
         #btnImprimirObra:hover { background: #e67e22; }
         .link-padron-modal { color: #3498db; text-decoration: underline; font-weight: bold; cursor: pointer; }
 
-        /* -------------------------------------------------------------
-           ADAPTACIÓN EXCLUSIVA PARA DISPOSITIVOS MÓVILES (CELULARES)
-        ------------------------------------------------------------- */
-        @media (max-width: 768px) {
-            .barra-superior {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 8px;
-                padding: 8px;
-                border-radius: 8px;
-            }
-            .contenedor-busquedas {
-                flex-direction: column;
-                gap: 6px;
-                width: 100%;
-            }
-            .btn-hamburguesa {
-                align-self: flex-start;
-                padding: 4px 8px;
-                font-size: 20px;
-            }
-            .btn-filtro-baldios {
-                padding: 8px;
-                font-size: 11px;
-                text-align: center;
-                width: 100%;
-            }
-
-            .panel-lateral {
-                width: 85%;
-                max-width: 300px;
-                left: -350px;
-            }
-            .panel-lateral.abierto {
-                left: 0;
-            }
-
-            .ficha-flotante-lote {
-                top: auto;
-                bottom: 10px;
-                left: 10px;
-                right: 10px;
-                width: auto;
-                max-height: 45vh;
-            }
-
-            .panel-derecho {
-                top: auto;
-                bottom: 70px;
-                right: 10px;
-                left: 10px;
-                width: auto;
-                max-width: none;
-                min-width: 0;
-            }
-
-            .totalizador-baldios-flotante {
-                bottom: 15px;
-                font-size: 11px;
-                padding: 8px 12px;
-            }
-
-            #modalPrevisualizacion > div {
-                width: 95%;
-                height: 90vh;
-            }
-            
-            /* Corrección para los tooltips perimetrales en pantallas táctiles */
-            .leaflet-tooltip {
-                padding: 2px 4px !important;
-                font-size: 9px !important;
-            }
-        }
-
         @media print {
             #modalPrevisualizacion { position: absolute !important; top: 0 !important; left: 0 !important; background: white !important; z-index: 9999 !important; display: flex !important; height: auto !important; overflow: visible !important; }
             #modalPrevisualizacion > div { box-shadow: none !important; width: 100% !important; height: auto !important; overflow: visible !important; border-radius: 0 !important; }
             .no-print { display: none !important; }
         }
+
+        /* DISEÑO EXCLUSIVO CELULARES */
+        @media (max-width: 768px) {
+            .barra-superior { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; padding: 10px !important; border-radius: 8px !important; }
+            .contenedor-busquedas { flex-direction: column !important; gap: 6px !important; width: 100% !important; }
+            .btn-hamburguesa { align-self: flex-start !important; padding: 2px 5px !important; }
+            .btn-filtro-baldios, .btn-filtro-satelite { width: 100% !important; text-align: center !important; padding: 8px !important; font-size: 12px !important; }
+            .panel-lateral { width: 80% !important; max-width: 300px !important; left: -350px !important; }
+            .panel-lateral.abierto { left: 0 !important; }
+            .ficha-flotante-lote { top: auto !important; bottom: 15px !important; left: 10px !important; right: 10px !important; width: auto !important; max-height: 40vh !important; }
+            .panel-derecho { top: auto !important; bottom: 75px !important; right: 10px !important; left: 10px !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
+            .totalizador-baldios-flotante { bottom: 12px !important; font-size: 11px !important; padding: 6px 12px !important; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="pantallaCarga">
-        <div class="spinner"></div>
-        <div style="font-weight: bold; color: #2c3e50; font-size: 14px;">⏳ Cargando capas y datos catastrales...</div>
-    </div>
-
     <div class="barra-superior no-print">
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-            <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰ Menú</button>
-        </div>
+        <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰</button>
         <div class="contenedor-busquedas">
             <div class="wrapper-input">
                 <input type="text" id="inputApellido" placeholder="🔎 Buscar por Apellido o Nro. Padrón..." autocomplete="off">
@@ -235,7 +154,7 @@
                 <div id="listaSugerenciasCalle"></div>
             </div>
         </div>
-        <button id="btnToggleSatelital" class="btn-filtro-baldios" onclick="toggleCapaSatelital()">🗺️ Vista Satelital: APAGADO</button>
+        <button id="btnToggleSatelite" class="btn-filtro-satelite">🛰️ Satelital: APAGADO</button>
         <button id="btnToggleBaldios" class="btn-filtro-baldios">⬜ Resaltar Baldíos: APAGADO</button>
     </div>
 
@@ -293,7 +212,7 @@
     </div>
 
     <div id="totalizadorBaldios" class="totalizador-baldios-flotante no-print">
-        🟢 Baldíos: <span id="numBaldios">0</span>
+        🟢 Terrenos Baldíos Totales: <span id="numBaldios">0</span>
     </div>
 
     <div id="map" class="no-print"></div>
@@ -304,10 +223,10 @@
                 <h2 id="modalTituloObra" style="color: white; margin: 0; font-size: 13px;">Informe de Obra Pública</h2>
                 <div style="display: flex; gap: 10px;">
                     <button onclick="window.print()" style="padding: 7px 14px; background: #d35400; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">🖨️ Imprimir</button>
-                    <button onclick="cerrarModalObra()" style="padding: 7px 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">✕</button>
+                    <button onclick="cerrarModalObra()" style="padding: 7px 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">✕ Cerrar</button>
                 </div>
             </div>
-            <div style="flex: 1; padding: 15px; overflow-y: auto; font-size: 12px;">
+            <div style="flex: 1; padding: 25px; overflow-y: auto; font-size: 12px;">
                 <div id="modalEncabezadoImpresion" style="margin-bottom: 15px; display: none;"></div>
                 <div style="width: 100%; overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px;">
@@ -330,6 +249,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="script.js?v=2.3"></script>
+    <script src="script.js"></script>
 </body>
 </html>

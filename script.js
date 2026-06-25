@@ -1,45 +1,22 @@
-// Configuración e inicialización de Capas Base
-const mapaClaro = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+// 1. DEFINICIÓN DE CAPAS MAPA BASE
+const capaCalles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 21,
     maxNativeZoom: 19,
     attribution: '© CartoDB'
 });
 
-// CAPA MODIFICADA A VERSIÓN HÍBRIDA (Satélite + Nombres de Calles con lyrs=y)
-const mapaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
     maxZoom: 21,
     maxNativeZoom: 20,
     attribution: '© Google Maps'
 });
 
-// Inicialización del Mapa asignando la capa base clara por defecto
+// 2. INICIALIZACIÓN DEL MAPA (Arranca con calles)
 const map = L.map('map', {
     center: [-34.268, -62.712],
     zoom: 15,
-    layers: [mapaClaro],
-    zoomControl: window.innerWidth > 768 // Desactiva botones de zoom masivos en celulares
+    layers: [capaCalles] 
 });
-
-if (window.innerWidth <= 768) {
-    L.control.zoom({ position: 'bottomright' }).addTo(map); // Los ubica abajo a la derecha de forma cómoda
-}
-
-// Función global para alternar la capa de Satélite desde la Barra Superior
-window.toggleCapaSatelital = function() {
-    const btn = document.getElementById('btnToggleSatelital');
-    
-    if (map.hasLayer(mapaClaro)) {
-        map.removeLayer(mapaClaro);
-        map.addLayer(mapaSatelital);
-        btn.innerHTML = "🛰️ Vista Satelital: PRENDIDO";
-        btn.classList.add('activo-satelital');
-    } else {
-        map.removeLayer(mapaSatelital);
-        map.addLayer(mapaClaro);
-        btn.innerHTML = "🗺️ Vista Satelital: APAGADO";
-        btn.classList.remove('activo-satelital');
-    }
-};
 
 // Variables Globales
 let datosTgi, capaTgi, miGraficoG, miGraficoC, miGraficoO;
@@ -116,14 +93,6 @@ function destellarLote(layer) {
     }
 }
 
-function ocultarSpinnerCarga() {
-    const spinnerDiv = document.getElementById('pantallaCarga');
-    if (spinnerDiv) {
-        spinnerDiv.style.opacity = '0';
-        setTimeout(() => spinnerDiv.style.display = 'none', 300);
-    }
-}
-
 async function cargarDatos() {
     try {
         const resM = await fetch('manzanas.geojson');
@@ -146,12 +115,8 @@ async function cargarDatos() {
         dibujarMapa(datosTgi.features);
         inicializarDesplegableSecciones(datosTgi.features);
         inicializarDesplegableObras(datosTgi.features); 
-        vincularBotonesDerechos(); 
-        ocultarSpinnerCarga();
-    } catch (e) { 
-        console.error("Error cargando tgi.geojson:", e);
-        ocultarSpinnerCarga();
-    }
+        vincularBotonesBarra(); 
+    } catch (e) { console.error("Error cargando tgi.geojson:", e); }
 }
 
 function dibujarMapa(features) {
@@ -163,9 +128,8 @@ function dibujarMapa(features) {
                 L.DomEvent.stopPropagation(e); 
                 mostrarFicha(f.properties); 
 
-                // Si está en celular, deja más margen arriba para no tapar con los inputs flotantes
-                const paddValue = window.innerWidth <= 768 ? [20, 140] : [50, 50];
-                map.fitBounds(l.getBounds(), { maxZoom: 20, paddingBottomRight: paddValue, paddingTopLeft: [20, 20], animate: true });
+                const margenMapa = window.innerWidth <= 768 ? [15, 120] : [50, 50];
+                map.fitBounds(l.getBounds(), { maxZoom: 20, paddingBottomRight: margenMapa, paddingTopLeft: [20, 20], animate: true });
                 limpiarMedidasLote();
 
                 if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
@@ -241,10 +205,11 @@ function calcularTotalBaldios() {
     document.getElementById('numBaldios').innerText = contador;
 }
 
-function vincularBotonesDerechos() {
+// CONFIGURACIÓN DE LOS DOS BOTONES DE LA BARRA
+function vincularBotonesBarra() {
     const btnB = document.getElementById('btnToggleBaldios');
     const panelTotalizador = document.getElementById('totalizadorBaldios');
-
+    
     btnB.onclick = function() {
         mostrarBaldiosExclusivos = !mostrarBaldiosExclusivos;
         if (mostrarBaldiosExclusivos) {
@@ -258,6 +223,21 @@ function vincularBotonesDerechos() {
             panelTotalizador.style.display = "none";
         }
         if (capaTgi) { capaTgi.eachLayer(layer => { capaTgi.resetStyle(layer); }); }
+    };
+
+    const btnS = document.getElementById('btnToggleSatelite');
+    btnS.onclick = function() {
+        if (map.hasLayer(capaCalles)) {
+            map.removeLayer(capaCalles);
+            map.addLayer(capaSatelital);
+            btnS.innerHTML = "🛰️ Satelital: PRENDIDO";
+            btnS.classList.add('activo');
+        } else {
+            map.removeLayer(capaSatelital);
+            map.addLayer(capaCalles);
+            btnS.innerHTML = "🛰️ Satelital: APAGADO";
+            btnS.classList.remove('activo');
+        }
     };
 }
 
@@ -442,6 +422,7 @@ window.seleccionarLotePorPadron = function(padronVal) {
     }
 };
 
+// FORMATEA LOS IMPORTES A FORMATO PESOS ARGENTINOS ($)
 function mostrarFicha(p) {
     const panelFlotante = document.getElementById('panelFichaFlotante');
     const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
@@ -459,10 +440,20 @@ function mostrarFicha(p) {
                 <p><span class="etiqueta">Domicilio:</span> <span class="valor">${domicilioDetectado}</span></p>
                 <hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">`;
     
+    const formatter = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+
     for (let k in p) { 
         const clavePrevia = k.toLowerCase();
         if(clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia" && clavePrevia !== "deudafecha") { 
-            html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${p[k] || '-'}</span></p>`; 
+            let valorMostrar = p[k];
+            
+            // Si la clave es "deuda tgi" o "deuda obra", forzamos pesos ($)
+            if (clavePrevia === "deuda tgi" || clavePrevia === "deuda obra") {
+                let montoNumerico = limpiarMontoGenerico(valorMostrar);
+                valorMostrar = formatter.format(montoNumerico);
+            }
+
+            html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${valorMostrar || '-'}</span></p>`; 
         }
     }
     
@@ -474,8 +465,7 @@ function mostrarFicha(p) {
     
     cuerpoFlotante.innerHTML = html;
     panelFlotante.style.display = "flex";
-    
-    // Si abre la ficha en celular, cierra automáticamente el menú hamburguesa para dar espacio
+
     if (window.innerWidth <= 768) {
         document.getElementById('panelLateral').classList.remove('abierto');
     }
@@ -579,7 +569,7 @@ function generarEstadisticaCalle(features, nombre) {
     });
 }
 
-function generarEstadisticaObra(features, nombre) {
+function generarEstadisticaObra(features, textObra) {
     let alDia = 0, conDeuda = 0, sumaMontoDeudaObra = 0;
     features.forEach(f => {
         const deudaObra = limpiarMontoGenerico(buscarProp(f.properties, "Deuda Obra")); sumaMontoDeudaObra += deudaObra;
@@ -593,7 +583,7 @@ function generarEstadisticaObra(features, nombre) {
 
     document.getElementById('panelEstadisticaObra').style.display = "block";
     document.getElementById('statsObraContenido').innerHTML = `
-        <p style="font-size:10px; margin:5px 0;">🚧 <strong>${nombre}</strong></p>
+        <p style="font-size:10px; margin:5px 0;">🚧 <strong>${textObra}</strong></p>
         <p style="font-size:11px; margin:0;">Lotes afectados: <strong>${total}</strong></p>
         <p style="font-size:11px; margin: 4px 0; color:#e74c3c;">Deuda Total Obra: <strong style="font-size:13px;">${montoFormat}</strong></p>
         <span class="etiqueta-porcentaje">VECINOS AL DÍA: ${porcAlDia}%</span>
@@ -648,5 +638,4 @@ document.getElementById('btnImprimirObra').onclick = function() {
     document.getElementById('modalPrevisualizacion').style.display = 'flex';
 };
 
-// Iniciar carga de datos catastrales
 cargarDatos();
