@@ -1,8 +1,39 @@
-const map = L.map('map').setView([-34.268, -62.712], 15);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+// Configuración e inicialización de Capas Base
+const mapaClaro = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 21,
-    maxNativeZoom: 19
-}).addTo(map);
+    maxNativeZoom: 19,
+    attribution: '© CartoDB'
+});
+
+const mapaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    maxZoom: 21,
+    maxNativeZoom: 20,
+    attribution: '© Google Maps'
+});
+
+// Inicialización del Mapa asignando la capa base clara por defecto
+const map = L.map('map', {
+    center: [-34.268, -62.712],
+    zoom: 15,
+    layers: [mapaClaro]
+});
+
+// Función global para alternar la capa de Satélite desde la Barra Superior
+window.toggleCapaSatelital = function() {
+    const btn = document.getElementById('btnToggleSatelital');
+    
+    if (map.hasLayer(mapaClaro)) {
+        map.removeLayer(mapaClaro);
+        map.addLayer(mapaSatelital);
+        btn.innerHTML = "🛰️ Vista Satelital: PRENDIDO";
+        btn.classList.add('activo-satelital');
+    } else {
+        map.removeLayer(mapaSatelital);
+        map.addLayer(mapaClaro);
+        btn.innerHTML = "🗺️ Vista Satelital: APAGADO";
+        btn.classList.remove('activo-satelital');
+    }
+};
 
 // Variables Globales
 let datosTgi, capaTgi, miGraficoG, miGraficoC, miGraficoO;
@@ -391,7 +422,6 @@ window.seleccionarLotePorPadron = function(padronVal) {
     }
 };
 
-// CORREGIDO: Tratamiento de deudafecha como texto cronológico/fecha pura
 function mostrarFicha(p) {
     const panelFlotante = document.getElementById('panelFichaFlotante');
     const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
@@ -401,7 +431,6 @@ function mostrarFicha(p) {
     const padronDetectado = buscarProp(p, "Padron") || "-";
     const domicilioDetectado = buscarProp(p, "Ubicacion") || "-";
     
-    // Almacena el valor directo como una cadena de texto (ej: "30/06/2026")
     const deudaFechaValor = buscarProp(p, "deudafecha") || "-";
     
     let est = (d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA';
@@ -413,13 +442,11 @@ function mostrarFicha(p) {
     
     for (let k in p) { 
         const clavePrevia = k.toLowerCase();
-        // Filtramos para omitir baldio, nomenc, referencia y deudafecha del listado estándar
         if(clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia" && clavePrevia !== "deudafecha") { 
             html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${p[k] || '-'}</span></p>`; 
         }
     }
     
-    // Remate visual elegante, limpio y neutral apto para mostrar fechas de corte
     html += `<hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">
              <p style="font-size: 11px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 15px;">
                 <span class="etiqueta" style="color: #64748b;">Deudas a la Fecha:</span> 
