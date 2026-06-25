@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TGI - Municipalidad de Rufino</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -133,6 +133,80 @@
         #btnImprimirObra:hover { background: #e67e22; }
         .link-padron-modal { color: #3498db; text-decoration: underline; font-weight: bold; cursor: pointer; }
 
+        /* -------------------------------------------------------------
+           ADAPTACIÓN EXCLUSIVA PARA DISPOSITIVOS MÓVILES (CELULARES)
+        ------------------------------------------------------------- */
+        @media (max-width: 768px) {
+            .barra-superior {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding: 8px;
+                border-radius: 8px;
+            }
+            .contenedor-busquedas {
+                flex-direction: column;
+                gap: 6px;
+                width: 100%;
+            }
+            .btn-hamburguesa {
+                align-self: flex-start;
+                padding: 4px 8px;
+                font-size: 20px;
+            }
+            .btn-filtro-baldios {
+                padding: 8px;
+                font-size: 11px;
+                text-align: center;
+                width: 100%;
+            }
+
+            .panel-lateral {
+                width: 85%;
+                max-width: 300px;
+                left: -350px;
+            }
+            .panel-lateral.abierto {
+                left: 0;
+            }
+
+            .ficha-flotante-lote {
+                top: auto;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-height: 45vh;
+            }
+
+            .panel-derecho {
+                top: auto;
+                bottom: 70px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+                max-width: none;
+                min-width: 0;
+            }
+
+            .totalizador-baldios-flotante {
+                bottom: 15px;
+                font-size: 11px;
+                padding: 8px 12px;
+            }
+
+            #modalPrevisualizacion > div {
+                width: 95%;
+                height: 90vh;
+            }
+            
+            /* Corrección para los tooltips perimetrales en pantallas táctiles */
+            .leaflet-tooltip {
+                padding: 2px 4px !important;
+                font-size: 9px !important;
+            }
+        }
+
         @media print {
             #modalPrevisualizacion { position: absolute !important; top: 0 !important; left: 0 !important; background: white !important; z-index: 9999 !important; display: flex !important; height: auto !important; overflow: visible !important; }
             #modalPrevisualizacion > div { box-shadow: none !important; width: 100% !important; height: auto !important; overflow: visible !important; border-radius: 0 !important; }
@@ -148,7 +222,9 @@
     </div>
 
     <div class="barra-superior no-print">
-        <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰</button>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰ Menú</button>
+        </div>
         <div class="contenedor-busquedas">
             <div class="wrapper-input">
                 <input type="text" id="inputApellido" placeholder="🔎 Buscar por Apellido o Nro. Padrón..." autocomplete="off">
@@ -178,7 +254,7 @@
         </select>
 
         <div id="panelEstadisticaCalle">
-            <h2 style="font-size: 11px; color: #16a085;">ANÁLLESIS DE CALLE</h2>
+            <h2 style="font-size: 11px; color: #16a085;">ANÁLISIS DE CALLE</h2>
             <div id="statsCalleContenido"></div>
             <div style="height: 120px; margin-top: 10px;">
                 <canvas id="graficoCalle"></canvas>
@@ -217,7 +293,7 @@
     </div>
 
     <div id="totalizadorBaldios" class="totalizador-baldios-flotante no-print">
-        🟢 Terrenos Baldíos Totales: <span id="numBaldios">0</span>
+        🟢 Baldíos: <span id="numBaldios">0</span>
     </div>
 
     <div id="map" class="no-print"></div>
@@ -228,23 +304,25 @@
                 <h2 id="modalTituloObra" style="color: white; margin: 0; font-size: 13px;">Informe de Obra Pública</h2>
                 <div style="display: flex; gap: 10px;">
                     <button onclick="window.print()" style="padding: 7px 14px; background: #d35400; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">🖨️ Imprimir</button>
-                    <button onclick="cerrarModalObra()" style="padding: 7px 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">✕ Cerrar</button>
+                    <button onclick="cerrarModalObra()" style="padding: 7px 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">✕</button>
                 </div>
             </div>
-            <div style="flex: 1; padding: 25px; overflow-y: auto; font-size: 12px;">
+            <div style="flex: 1; padding: 15px; overflow-y: auto; font-size: 12px;">
                 <div id="modalEncabezadoImpresion" style="margin-bottom: 15px; display: none;"></div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nro. Padrón</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Titular</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Domicilio</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Cuotas Atr.</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Deuda Obra</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modalTablaCuerpo"></tbody>
-                </table>
+                <div style="width: 100%; overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px;">
+                        <thead>
+                            <tr style="background: #f8f9fa;">
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nro. Padrón</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Titular</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Domicilio</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Cuotas Atr.</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Deuda Obra</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTablaCuerpo"></tbody>
+                    </table>
+                </div>
                 <div id="modalTotalCaja" style="background: #fdf2e9; border: 1px solid #e67e22; padding: 15px; text-align: right; font-weight: bold; margin-top: 15px; border-radius: 6px;"></div>
             </div>
         </div>
@@ -252,6 +330,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="script.js?v=2.2"></script>
+    <script src="script.js?v=2.3"></script>
 </body>
 </html>

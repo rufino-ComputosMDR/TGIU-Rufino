@@ -5,7 +5,7 @@ const mapaClaro = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{
     attribution: '© CartoDB'
 });
 
-// CAPA MODIFICADA A VERSIÓN HÍBRIDA (PUNTO 2: Satélite + Nombres de Calles con lyrs=y)
+// CAPA MODIFICADA A VERSIÓN HÍBRIDA (Satélite + Nombres de Calles con lyrs=y)
 const mapaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
     maxZoom: 21,
     maxNativeZoom: 20,
@@ -16,8 +16,13 @@ const mapaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&
 const map = L.map('map', {
     center: [-34.268, -62.712],
     zoom: 15,
-    layers: [mapaClaro]
+    layers: [mapaClaro],
+    zoomControl: window.innerWidth > 768 // Desactiva botones de zoom masivos en celulares
 });
+
+if (window.innerWidth <= 768) {
+    L.control.zoom({ position: 'bottomright' }).addTo(map); // Los ubica abajo a la derecha de forma cómoda
+}
 
 // Función global para alternar la capa de Satélite desde la Barra Superior
 window.toggleCapaSatelital = function() {
@@ -111,7 +116,6 @@ function destellarLote(layer) {
     }
 }
 
-// Ocultar pantalla de carga una vez finalizado todo el proceso (PUNTO 1)
 function ocultarSpinnerCarga() {
     const spinnerDiv = document.getElementById('pantallaCarga');
     if (spinnerDiv) {
@@ -143,12 +147,10 @@ async function cargarDatos() {
         inicializarDesplegableSecciones(datosTgi.features);
         inicializarDesplegableObras(datosTgi.features); 
         vincularBotonesDerechos(); 
-        
-        // Datos listos en pantalla -> Ocultamos cartel (PUNTO 1)
         ocultarSpinnerCarga();
     } catch (e) { 
         console.error("Error cargando tgi.geojson:", e);
-        ocultarSpinnerCarga(); // Ocultar igual si falla para no trabar la interfaz
+        ocultarSpinnerCarga();
     }
 }
 
@@ -161,7 +163,9 @@ function dibujarMapa(features) {
                 L.DomEvent.stopPropagation(e); 
                 mostrarFicha(f.properties); 
 
-                map.fitBounds(l.getBounds(), { maxZoom: 20, padding: [50, 50], animate: true });
+                // Si está en celular, deja más margen arriba para no tapar con los inputs flotantes
+                const paddValue = window.innerWidth <= 768 ? [20, 140] : [50, 50];
+                map.fitBounds(l.getBounds(), { maxZoom: 20, paddingBottomRight: paddValue, paddingTopLeft: [20, 20], animate: true });
                 limpiarMedidasLote();
 
                 if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
@@ -470,6 +474,11 @@ function mostrarFicha(p) {
     
     cuerpoFlotante.innerHTML = html;
     panelFlotante.style.display = "flex";
+    
+    // Si abre la ficha en celular, cierra automáticamente el menú hamburguesa para dar espacio
+    if (window.innerWidth <= 768) {
+        document.getElementById('panelLateral').classList.remove('abierto');
+    }
 }
 
 window.cerrarFicha = () => { 
