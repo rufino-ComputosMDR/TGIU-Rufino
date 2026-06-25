@@ -5,7 +5,8 @@ const mapaClaro = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{
     attribution: '© CartoDB'
 });
 
-const mapaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+// CAPA MODIFICADA A VERSIÓN HÍBRIDA (PUNTO 2: Satélite + Nombres de Calles con lyrs=y)
+const mapaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
     maxZoom: 21,
     maxNativeZoom: 20,
     attribution: '© Google Maps'
@@ -110,6 +111,15 @@ function destellarLote(layer) {
     }
 }
 
+// Ocultar pantalla de carga una vez finalizado todo el proceso (PUNTO 1)
+function ocultarSpinnerCarga() {
+    const spinnerDiv = document.getElementById('pantallaCarga');
+    if (spinnerDiv) {
+        spinnerDiv.style.opacity = '0';
+        setTimeout(() => spinnerDiv.style.display = 'none', 300);
+    }
+}
+
 async function cargarDatos() {
     try {
         const resM = await fetch('manzanas.geojson');
@@ -133,7 +143,13 @@ async function cargarDatos() {
         inicializarDesplegableSecciones(datosTgi.features);
         inicializarDesplegableObras(datosTgi.features); 
         vincularBotonesDerechos(); 
-    } catch (e) { console.error("Error cargando tgi.geojson:", e); }
+        
+        // Datos listos en pantalla -> Ocultamos cartel (PUNTO 1)
+        ocultarSpinnerCarga();
+    } catch (e) { 
+        console.error("Error cargando tgi.geojson:", e);
+        ocultarSpinnerCarga(); // Ocultar igual si falla para no trabar la interfaz
+    }
 }
 
 function dibujarMapa(features) {
@@ -430,7 +446,6 @@ function mostrarFicha(p) {
     const m = parseInt(buscarProp(p, "Meses Adeud.TGI")) || 0;
     const padronDetectado = buscarProp(p, "Padron") || "-";
     const domicilioDetectado = buscarProp(p, "Ubicacion") || "-";
-    
     const deudaFechaValor = buscarProp(p, "deudafecha") || "-";
     
     let est = (d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA';
@@ -624,4 +639,5 @@ document.getElementById('btnImprimirObra').onclick = function() {
     document.getElementById('modalPrevisualizacion').style.display = 'flex';
 };
 
+// Iniciar carga de datos catastrales
 cargarDatos();
