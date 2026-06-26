@@ -37,6 +37,23 @@
         .btn-accion:hover { background: #f5f6fa; border-color: #b2bec3; }
         .btn-accion.activo { background: #2ecc71; color: white; border-color: #27ae60; }
 
+        /* BOTÓN DE GRÁFICO GENERAL MUDADO AL MAPA */
+        .btn-grafico-mapa {
+            position: absolute; bottom: 20px; right: 10px; z-index: 2000;
+            background: #34495e; color: white; border: none; padding: 10px 15px;
+            border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 6px;
+        }
+        .btn-grafico-mapa:hover { background: #2c3e50; }
+
+        /* CONTENEDOR FLOTANTE PARA EL GRÁFICO GENERAL */
+        .modal-grafico-flotante {
+            position: absolute; bottom: 70px; right: 10px; width: 280px; height: 190px;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            padding: 12px; z-index: 2000; display: none; border: 1px solid #e1e8ed;
+        }
+
         /* SUGERENCIAS DE BÚSQUEDA */
         .contenedor-sugerencias {
             position: absolute; top: 100%; left: 0; right: 0; background: white;
@@ -155,8 +172,12 @@
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             }
             .fila-movil-top { display: flex; align-items: center; gap: 8px; }
-            .panel-lateral { top: 95px; width: calc(100% - 20px); left: 10px; bottom: 10px; }
-            .panel-ficha { top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 50%; border-radius: 12px 12px 0 0; }
+            .panel-lateral { top: 105px; width: calc(100% - 20px); left: 10px; bottom: 10px; height: auto; max-height: calc(100% - 120px); }
+            .panel-ficha { top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 50%; border-radius: 12px 12px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.25); }
+            .btn-grafico-mapa { bottom: auto; top: 110px; right: 10px; font-size: 11px; padding: 6px 10px; }
+            .modal-grafico-flotante { bottom: auto; top: 150px; right: 10px; width: 240px; }
+            .totalizador-baldios { bottom: 15px; font-size: 11px; padding: 6px 14px; width: 80%; text-align: center; }
+            .modal-contenido { width: 95%; height: 95%; }
         }
 
         /* REGLAS EXCLUSIVAS DE IMPRESIÓN */
@@ -220,6 +241,14 @@
 
     <div id="map"></div>
 
+    <button class="btn-grafico-mapa" onclick="solicitarGraficoGeneral()">📊 Gráfico Filtro</button>
+    <div id="contenedorGraficoGeneral" class="modal-grafico-flotante">
+        <label style="font-size:10px; font-weight:bold; color:#7f8c8d; display:block; margin-bottom:5px;">DISTRIBUCIÓN TGI ACTUAL</label>
+        <div style="width:100%; height:140px; position:relative;">
+            <canvas id="graficoBarras"></canvas>
+        </div>
+    </div>
+
     <div id="panelLateral" class="panel-lateral">
         <div class="cabecera-panel">Filtros y Estadísticas</div>
         <div class="contenido-panel">
@@ -236,15 +265,6 @@
                 <select id="selectObra" class="select-filtro">
                     <option value="">Cargando...</option>
                 </select>
-            </div>
-
-            <button class="btn-accion" style="background:#34495e; color:white; margin-top:5px;" onclick="solicitarGraficoGeneral()">📊 Ver Gráfico General de Filtro</button>
-
-            <div id="contenedorGraficoGeneral" class="panel-info-est" style="display: none; height: 180px;">
-                <label style="font-size:10px; font-weight:bold; color:#7f8c8d; display:block; margin-bottom:5px;">DISTRIBUCIÓN TGI ACTUAL</label>
-                <div style="width:100%; height:140px; position:relative;">
-                    <canvas id="graficoBarras"></canvas>
-                </div>
             </div>
 
             <div id="panelEstadisticaCalle" class="panel-info-est" style="display:none;">
@@ -274,7 +294,7 @@
     </div>
 
     <div id="totalizadorBaldios" class="totalizador-baldios">
-        Total de Baldíos Registrados: <span id="numBaldios">0</span>
+        Total de Baldíos: <span id="numBaldios">0</span>
     </div>
 
     <div id="modalPrevisualizacion" class="modal-previsualizacion">
@@ -290,7 +310,7 @@
                 <div id="modalEncabezadoImpresion" style="margin-bottom: 15px;"></div>
                 
                 <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                    <thead>
+                    <thead id="modalTablaEncabezado">
                         <tr style="background: #f8f9fa;">
                             <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nro. Padrón</th>
                             <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Titular</th>

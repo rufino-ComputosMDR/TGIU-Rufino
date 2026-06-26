@@ -458,14 +458,25 @@ function abrirModalImpresionMultiple() {
         totalDeudaTgi += deuTgi;
         totalDeudaObra += deuObra;
         
+        // MODIFICADO: Solo genera celdas para Padrón, Nombre y Dirección
         HTMLFilas += `<tr>
             <td><strong>${padronVal}</strong></td>
             <td>${nombre}</td>
             <td>${domicilio}</td>
-            <td style="text-align:center;">Lote Seleccionado</td>
-            <td style="text-align:right; font-weight:bold;">TGI: ${deuTgi > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuTgi) : "$ 0,00"}</td>
         </tr>`;
     });
+
+    // MODIFICADO: Ajusta los encabezados de la tabla a solo Contribuyente, Nombre y Dirección
+    const elEncabezadoTabla = document.getElementById('modalTablaEncabezado');
+    if (elEncabezadoTabla) {
+        elEncabezadoTabla.innerHTML = `
+            <tr style="background: #f8f9fa;">
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Contribuyente (Padrón)</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nombre</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Dirección</th>
+            </tr>
+        `;
+    }
 
     const elTitulo = document.getElementById('modalTituloObra');
     if (elTitulo) elTitulo.innerHTML = `🖨️ Reporte Consolidado de Lotes Seleccionados`;
@@ -530,7 +541,6 @@ function abrirModalImpresionMultiple() {
         }).addTo(mapaImpresionClonado);
 
         if (featuresSeleccionadas.length > 0) {
-            // AJUSTE: El padding [35, 35] obliga al mapa a centrarse de cerca sobre los lotes, maximizando el nivel de zoom para imprimir
             mapaImpresionClonado.fitBounds(capaAgrupadaReporte.getBounds(), { padding: [35, 35] });
         }
     }, 250);
@@ -542,6 +552,20 @@ function abrirModalObra() {
 
     const divMapa = document.getElementById('mapaClonadoImpresion');
     if (divMapa) divMapa.remove();
+
+    // MODIFICADO: Asegura el re-establecimiento de las cabeceras estándar para cuando se imprime Obras
+    const elEncabezadoTabla = document.getElementById('modalTablaEncabezado');
+    if (elEncabezadoTabla) {
+        elEncabezadoTabla.innerHTML = `
+            <tr style="background: #f8f9fa;">
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nro. Padrón</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Titular</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Domicilio</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Info Cuotas</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Deuda TGI / Obra</th>
+            </tr>
+        `;
+    }
 
     lotesObraActual.forEach(f => {
         const p = f.properties;
@@ -685,12 +709,17 @@ function ocultarContenedorGraficoGeneral() {
     if (miGraficoG) { miGraficoG.destroy(); miGraficoG = null; }
 }
 
+// MODIFICADO: Alterna la visibilidad del contenedor flotante sobre el mapa
 window.solicitarGraficoGeneral = function() {
     const contenedor = document.getElementById('contenedorGraficoGeneral');
-    const panelL = document.getElementById('panelLateral');
-    if(panelL) panelL.classList.add('abierto');
-    if (contenedor) contenedor.style.display = "block";
-    actualizarGraficoGeneral(listadoLotesFiltroActual);
+    if (contenedor) {
+        if (contenedor.style.display === "block") {
+            ocultarContenedorGraficoGeneral();
+        } else {
+            contenedor.style.display = "block";
+            actualizarGraficoGeneral(listadoLotesFiltroActual);
+        }
+    }
 };
 
 function actualizarGraficoGeneral(features) {
