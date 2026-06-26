@@ -10,11 +10,13 @@
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f0f0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
 
-        /* LOGO ESTILOS */
+        /* LOGO ESTILOS CORREGIDOS CON ROTACIÓN */
         .logo-municipio {
             height: 32px;
             object-fit: contain;
             margin: 0 5px;
+            transform: rotate(-90deg); /* Gira el logo hacia la izquierda para enderezarlo */
+            transform-origin: center;
         }
 
         /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS */
