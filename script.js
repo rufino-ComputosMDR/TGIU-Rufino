@@ -11,7 +11,7 @@ const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&
     attribution: '© Google Maps'
 });
 
-// 2. INICIALIZACIÓN DEL MAPA (Cambio a Zoom 14 para ver más de lejos al inicio)
+// 2. INICIALIZACIÓN DEL MAPA (Zoom inicial 14 para ver más de lejos)
 const map = L.map('map', {
     center: [-34.268, -62.712],
     zoom: 14, 
@@ -39,12 +39,27 @@ function buscarProp(obj, texto) {
 
 function limpiarMontoDeuda(propiedades) { return limpiarMontoGenerico(buscarProp(propiedades, "Deuda TGI")); }
 
+// DETECTA Y LIMPIA CUALQUIER FORMATO NUMÉRICO DE FORMA SEGURA (Arreglo de la coma/punto)
 function limpiarMontoGenerico(valorTexto) {
-    let texto = String(valorTexto || "0").trim();
-    if (texto.toLowerCase() === "null") return 0;
+    if (valorTexto === null || valorTexto === undefined) return 0;
+    let texto = String(valorTexto).trim();
+    if (texto.toLowerCase() === "null" || texto === "") return 0;
+    
+    if (!isNaN(texto) && !texto.includes(',')) {
+        return parseFloat(texto) || 0;
+    }
+
     texto = texto.replace('$', '').replace(/\s/g, '');
-    if ((texto.match(/\./g) || []).length === 1 && texto.includes(',')) { texto = texto.replace(/,/g, ''); } 
-    else { texto = texto.replace(/\./g, '').replace(',', '.'); }
+
+    if (texto.includes(',')) {
+        texto = texto.replace(/\./g, ''); 
+        texto = texto.replace(',', '.');  
+    } else {
+        if (texto.includes('.') && texto.indexOf('.') !== texto.lastIndexOf('.')) {
+            texto = texto.replace(/\./g, '');
+        }
+    }
+    
     return parseFloat(texto) || 0;
 }
 
@@ -205,6 +220,7 @@ function calcularTotalBaldios() {
     document.getElementById('numBaldios').innerText = contador;
 }
 
+// RESTAURADO: Se asocian correctamente los eventos de Satelital y Baldíos
 function vincularBotonesBarra() {
     const btnB = document.getElementById('btnToggleBaldios');
     const panelTotalizador = document.getElementById('totalizadorBaldios');
@@ -245,11 +261,10 @@ function limpiarMedidasLote() {
     lineasLadosActuales = [];
 }
 
-// FILTRADO UNIFICADO (Soporta dinámicamente inputs de Escritorio y de Celular)
+// FILTRADO UNIFICADO (Celulares y PC alineados)
 function filtrarTodo(e) {
     const esMovil = window.innerWidth <= 768;
     
-    // Sincronizar valores entre cajas si el usuario escribe desde una u otra
     if (e && e.target) {
         if (e.target.id === "inputApellido") document.getElementById("inputApellidoMovil").value = e.target.value;
         if (e.target.id === "inputApellidoMovil") document.getElementById("inputApellido").value = e.target.value;
@@ -263,7 +278,6 @@ function filtrarTodo(e) {
     const sugApp = document.getElementById(esMovil ? 'listaSugerenciasMovil' : 'listaSugerencias');
     const sugCalle = document.getElementById(esMovil ? 'listaSugerenciasCalleMovil' : 'listaSugerenciasCalle');
     
-    // Ocultar los opuestos para evitar flotantes fantasma
     document.getElementById(esMovil ? 'listaSugerencias' : 'listaSugerenciasMovil').style.display = "none";
     document.getElementById(esMovil ? 'listaSugerenciasCalle' : 'listaSugerenciasCalleMovil').style.display = "none";
 
@@ -487,8 +501,8 @@ function mostrarFicha(p) {
                 <span class="valor" style="font-weight: bold; color: #334155;">${deudaFechaValor}</span>
              </p>`;
     
-    cuerpoFlotante.innerHTML = html;
     panelFlotante.style.display = "flex";
+    cuerpoFlotante.innerHTML = html;
 
     if (window.innerWidth <= 768) {
         document.getElementById('panelLateral').classList.remove('abierto');
@@ -514,7 +528,7 @@ window.cerrarFicha = () => {
     if (datosTgi && datosTgi.features) {
         listadoLotesFiltroActual = datosTgi.features;
         dibujarMapa(datosTgi.features);
-        map.setView([-34.268, -62.712], 14); // Mantiene el inicio alejado
+        map.setView([-34.268, -62.712], 14);
     }
 };
 
