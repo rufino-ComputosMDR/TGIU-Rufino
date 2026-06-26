@@ -11,11 +11,20 @@ const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&
     attribution: '© Google Maps'
 });
 
-// 2. INICIALIZACIÓN DEL MAPA (Zoom inicial 14 para ver más de lejos)
+// 2. INICIALIZACIÓN DEL MAPA
 const map = L.map('map', {
     center: [-34.268, -62.712],
     zoom: 14, 
     layers: [capaCalles] 
+});
+
+map.on('click', () => {
+    const sObra = document.getElementById('selectObra');
+    if (sObra) sObra.value = "";
+    document.getElementById('panelEstadisticaObra').style.display = "none";
+    document.getElementById('btnImprimirObra').style.display = "none";
+    nombreObraActual = "";
+    lotesObraActual = [];
 });
 
 // Variables Globales
@@ -26,10 +35,14 @@ let lineasLadosActuales = [];
 let mostrarBaldiosExclusivos = false; 
 let listadoLotesFiltroActual = [];
 
-// INTERRUPTOR DEL MENÚ HAMBURGUESA LATERAL
+// VARIABLES PARA SELECCIÓN MÚLTIPLE Y LOGÍSTICA DE MAPA INTERNO
+let modoSeleccionMultiple = false;
+let lotesSeleccionados = []; 
+let mapaImpresionClonado = null;
+
 window.togglePanelLateral = function() {
     const panel = document.getElementById('panelLateral');
-    panel.classList.toggle('abierto');
+    if (panel) panel.classList.toggle('abierto');
 };
 
 function buscarProp(obj, texto) {
@@ -37,9 +50,8 @@ function buscarProp(obj, texto) {
     return "";
 }
 
-function limpiarMontoDeuda(propiedades) { return limpiarMontoGenerico(buscarProp(propiedades, "Deuda TGI")); }
+function limpiarMontoDeuda(properties) { return limpiarMontoGenerico(buscarProp(properties, "Deuda TGI")); }
 
-// DETECTA Y LIMPIA CUALQUIER FORMATO NUMÉRICO DE FORMA SEGURA (Arreglo de la coma/punto)
 function limpiarMontoGenerico(valorTexto) {
     if (valorTexto === null || valorTexto === undefined) return 0;
     let texto = String(valorTexto).trim();
@@ -81,6 +93,13 @@ function estiloManzanaPorSeccion(feature) {
 }
 
 function estiloLote(f) {
+    const estaSeleccionado = lotesSeleccionados.some(item => 
+        buscarProp(item.feature.properties, "Padron") === buscarProp(f.properties, "Padron")
+    );
+    if (estaSeleccionado) {
+        return { color: "#8e44ad", fillColor: "#9b59b6", weight: 3, fillOpacity: 0.85 };
+    }
+
     const bField = f.properties.Baldio;
     const esBaldio = bField !== null && bField !== undefined && String(bField).trim().toUpperCase() === "S";
     
@@ -128,10 +147,77 @@ async function cargarDatos() {
         datosTgi = await resT.json();
         listadoLotesFiltroActual = datosTgi.features;
         dibujarMapa(datosTgi.features);
-        inicializarDesplegableSecciones(datosTgi.features);
-        inicializarDesplegableObras(datosTgi.features); 
+        configurarSelectoresDinamicos(); 
         vincularBotonesBarra(); 
     } catch (e) { console.error("Error cargando tgi.geojson:", e); }
+}
+
+function configurarSelectoresDinamicos() {
+    const selectS = document.getElementById('selectSeccion');
+    const selectO = document.getElementById('selectObra');
+    if (!selectS || !selectO) return;
+
+    let secciones = new Set();
+    let obras = new Set();
+
+    datosTgi.features.forEach(f => {
+        const s = buscarProp(f.properties, "Seccion"); if (s) secciones.add(String(s).trim());
+        const o = buscarProp(f.properties, "Obra"); if (o) obras.add(String(o).trim());
+    });
+
+    let htmlS = '<option value="">-- Todas las Secciones --</option>';
+    [...secciones].sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).forEach(s => { 
+        htmlS += `<option value="${s}">Sección ${s}</option>`; 
+    });
+    selectS.innerHTML = htmlS;
+
+    let htmlO = '<option value="">-- Sin Filtrar Obra --</option>';
+    [...obras].sort().forEach(o => { 
+        htmlO += `<option value="${o}">${o}</option>`; 
+    });
+    selectO.innerHTML = htmlO;
+
+    selectS.onchange = filtrarPorSelectoresMenu;
+    selectO.onchange = filtrarPorSelectoresMenu;
+}
+
+function filtrarPorSelectoresMenu() {
+    limpiarMedidasLote();
+    ocultarContenedorGraficoGeneral();
+
+    if(document.getElementById('inputApellido')) document.getElementById('inputApellido').value = ""; 
+    if(document.getElementById('inputApellidoMovil')) document.getElementById('inputApellidoMovil').value = "";
+    if(document.getElementById('inputCalle')) document.getElementById('inputCalle').value = ""; 
+    if(document.getElementById('inputCalleMovil')) document.getElementById('inputCalleMovil').value = "";
+    if(document.getElementById('panelEstadisticaCalle')) document.getElementById('panelEstadisticaCalle').style.display = "none";
+
+    const seccionSel = document.getElementById('selectSeccion').value;
+    const obraSel = document.getElementById('selectObra').value;
+
+    listadoLotesFiltroActual = datosTgi.features.filter(f => {
+        const s = String(buscarProp(f.properties, "Seccion") || "").trim();
+        const o = String(buscarProp(f.properties, "Obra") || "").trim();
+        
+        const cumpleS = !seccionSel || s === seccionSel;
+        const cumpleO = !obraSel || o === obraSel;
+        return cumpleS && cumpleO;
+    });
+
+    dibujarMapa(listadoLotesFiltroActual);
+    if (listadoLotesFiltroActual.length > 0 && (seccionSel || obraSel)) {
+        map.fitBounds(capaTgi.getBounds(), { padding: [20, 20] });
+    }
+
+    if (obraSel) {
+        nombreObraActual = obraSel;
+        lotesObraActual = listadoLotesFiltroActual;
+        generarEstadisticaObra(lotesObraActual, obraSel);
+        document.getElementById('btnImprimirObra').style.display = "block";
+    } else {
+        document.getElementById('panelEstadisticaObra').style.display = "none";
+        document.getElementById('btnImprimirObra').style.display = "none";
+        nombreObraActual = ""; lotesObraActual = [];
+    }
 }
 
 function dibujarMapa(features) {
@@ -141,6 +227,53 @@ function dibujarMapa(features) {
         onEachFeature: (f, l) => {
             l.on('click', (e) => { 
                 L.DomEvent.stopPropagation(e); 
+                
+                // CONTROL DE SELECCIÓN MÚLTIPLE DE LOTES
+                if (modoSeleccionMultiple) {
+                    const padronActual = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente") || "";
+                    const indice = lotesSeleccionados.findIndex(item => 
+                        buscarProp(item.feature.properties, "Padron") === padronActual
+                    );
+
+                    if (indice >= 0) {
+                        lotesSeleccionados.splice(indice, 1);
+                        l.setStyle(estiloLote(f));
+                        if (l.idEtiquetaCentro) {
+                            map.removeLayer(l.idEtiquetaCentro);
+                            l.idEtiquetaCentro = null;
+                        }
+                    } else {
+                        lotesSeleccionados.push({ feature: f, layer: l });
+                        l.setStyle({ color: "#8e44ad", fillColor: "#9b59b6", weight: 3, fillOpacity: 0.85 });
+                        
+                        // INYECCIÓN DEL NÚMERO DE CONTRIBUYENTE EN EL CENTRO
+                        if (padronActual) {
+                            const centroLote = l.getBounds().getCenter();
+                            const etiquetaCentro = L.circleMarker(centroLote, { radius: 0, opacity: 0, fillOpacity: 0 }).addTo(map);
+                            etiquetaCentro.bindTooltip(String(padronActual), {
+                                permanent: true, direction: 'center', className: 'etiqueta-contribuyente-centro'
+                            }).openTooltip();
+                            l.idEtiquetaCentro = etiquetaCentro;
+                        }
+                    }
+
+                    const btnImpSel = document.getElementById('btnImprimirSeleccionados');
+                    if (btnImpSel) {
+                        if (lotesSeleccionados.length > 0) {
+                            btnImpSel.style.display = "block";
+                            btnImpSel.innerText = `🖨️ Imprimir Selección (${lotesSeleccionados.length})`;
+                        } else {
+                            btnImpSel.style.display = "none";
+                        }
+                    }
+                    return; 
+                }
+
+                const sObra = document.getElementById('selectObra');
+                if (sObra) sObra.value = "";
+                if(document.getElementById('panelEstadisticaObra')) document.getElementById('panelEstadisticaObra').style.display = "none";
+                if(document.getElementById('btnImprimirObra')) document.getElementById('btnImprimirObra').style.display = "none";
+
                 mostrarFicha(f.properties); 
 
                 const margenMapa = window.innerWidth <= 768 ? [15, 120] : [50, 50];
@@ -217,43 +350,228 @@ function calcularTotalBaldios() {
         const bField = f.properties.Baldio;
         return bField !== null && bField !== undefined && String(bField).trim().toUpperCase() === "S";
     }).length;
-    document.getElementById('numBaldios').innerText = contador;
+    const numB = document.getElementById('numBaldios');
+    if(numB) numB.innerText = contador;
 }
 
-// RESTAURADO: Se asocian correctamente los eventos de Satelital y Baldíos
 function vincularBotonesBarra() {
     const btnB = document.getElementById('btnToggleBaldios');
     const panelTotalizador = document.getElementById('totalizadorBaldios');
     
-    btnB.onclick = function() {
-        mostrarBaldiosExclusivos = !mostrarBaldiosExclusivos;
-        if (mostrarBaldiosExclusivos) {
-            btnB.innerHTML = "🟩 Resaltar Baldíos: PRENDIDO";
-            btnB.classList.add('activo');
-            calcularTotalBaldios();
-            panelTotalizador.style.display = "block";
-        } else {
-            btnB.innerHTML = "⬜ Resaltar Baldíos: APAGADO";
-            btnB.classList.remove('activo');
-            panelTotalizador.style.display = "none";
-        }
-        if (capaTgi) { capaTgi.eachLayer(layer => { capaTgi.resetStyle(layer); }); }
-    };
+    if (btnB) {
+        btnB.onclick = function() {
+            mostrarBaldiosExclusivos = !mostrarBaldiosExclusivos;
+            if (mostrarBaldiosExclusivos) {
+                btnB.innerHTML = "🟩 Baldíos: ON";
+                btnB.classList.add('activo');
+                calcularTotalBaldios();
+                if(panelTotalizador) panelTotalizador.style.display = "block";
+            } else {
+                btnB.innerHTML = "⬜ Baldíos: OFF";
+                btnB.classList.remove('activo');
+                if(panelTotalizador) panelTotalizador.style.display = "none";
+            }
+            if (capaTgi) { capaTgi.eachLayer(layer => { capaTgi.resetStyle(layer); }); }
+        };
+    }
 
     const btnS = document.getElementById('btnToggleSatelite');
-    btnS.onclick = function() {
-        if (map.hasLayer(capaCalles)) {
-            map.removeLayer(capaCalles);
-            map.addLayer(capaSatelital);
-            btnS.innerHTML = "🛰️ Satelital: PRENDIDO";
-            btnS.classList.add('activo');
-        } else {
-            map.removeLayer(capaSatelital);
-            map.addLayer(capaCalles);
-            btnS.innerHTML = "🛰️ Satelital: APAGADO";
-            btnS.classList.remove('activo');
+    if (btnS) {
+        btnS.onclick = function() {
+            if (map.hasLayer(capaCalles)) {
+                map.removeLayer(capaCalles);
+                map.addLayer(capaSatelital);
+                btnS.innerHTML = "🛰️ Satelital: ON";
+                btnS.classList.add('activo');
+            } else {
+                map.removeLayer(capaSatelital);
+                map.addLayer(capaCalles);
+                btnS.innerHTML = "🛰️ Satelital: OFF";
+                btnS.classList.remove('activo');
+            }
+        };
+    }
+
+    const btnModoSel = document.getElementById('btnModoSeleccion');
+    if (btnModoSel) {
+        btnModoSel.onclick = function() {
+            modoSeleccionMultiple = !modoSeleccionMultiple;
+            if (modoSeleccionMultiple) {
+                btnModoSel.innerHTML = "🔮 Modo Múltiple: ACTIVO";
+                btnModoSel.style.backgroundColor = "#e67e22";
+                btnModoSel.style.color = "white";
+            } else {
+                btnModoSel.innerHTML = "Selección Múltiple: OFF";
+                btnModoSel.style.backgroundColor = "";
+                btnModoSel.style.color = "";
+                
+                if (capaTgi) {
+                    capaTgi.eachLayer(layer => {
+                        if (layer.idEtiquetaCentro) {
+                            map.removeLayer(layer.idEtiquetaCentro);
+                            layer.idEtiquetaCentro = null;
+                        }
+                    });
+                }
+                lotesSeleccionados = [];
+                const btnImpSel = document.getElementById('btnImprimirSeleccionados');
+                if(btnImpSel) btnImpSel.style.display = "none";
+                if (capaTgi) { capaTgi.eachLayer(layer => { capaTgi.resetStyle(layer); }); }
+            }
+        };
+    }
+
+    const btnImpSel = document.getElementById('btnImprimirSeleccionados');
+    if (btnImpSel) btnImpSel.onclick = abrirModalImpresionMultiple;
+
+    const btnImp = document.getElementById('btnImprimirObra');
+    if (btnImp) btnImp.onclick = abrirModalObra;
+}
+
+function abrirModalImpresionMultiple() {
+    let HTMLFilas = "";
+    let totalDeudaTgi = 0;
+    let totalDeudaObra = 0;
+    
+    let contenedorModal = document.getElementById('modalImprimible');
+    let divMapa = document.getElementById('mapaClonadoImpresion');
+    
+    if (contenedorModal && !divMapa) {
+        divMapa = document.createElement('div');
+        divMapa.id = 'mapaClonadoImpresion';
+        divMapa.style.width = '100%';
+        divMapa.style.height = '400px';
+        divMapa.style.marginBottom = '20px';
+        divMapa.style.borderRadius = '8px';
+        divMapa.style.border = '1px solid #ccc';
+        contenedorModal.insertBefore(divMapa, contenedorModal.firstChild);
+    }
+
+    lotesSeleccionados.forEach(item => {
+        const p = item.feature.properties;
+        const padronVal = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "-";
+        const nombre = buscarProp(p, "Tit. Nombre") || "-";
+        const domicilio = buscarProp(p, "Ubicacion") || "-";
+        const deuTgi = limpiarMontoDeuda(p);
+        const deuObra = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
+        
+        totalDeudaTgi += deuTgi;
+        totalDeudaObra += deuObra;
+        
+        HTMLFilas += `<tr>
+            <td><strong>${padronVal}</strong></td>
+            <td>${nombre}</td>
+            <td>${domicilio}</td>
+            <td style="text-align:center;">Lote Seleccionado</td>
+            <td style="text-align:right; font-weight:bold;">TGI: ${deuTgi > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuTgi) : "$ 0,00"}</td>
+        </tr>`;
+    });
+
+    const elTitulo = document.getElementById('modalTituloObra');
+    if (elTitulo) elTitulo.innerHTML = `🖨️ Reporte Consolidado de Lotes Seleccionados`;
+
+    const elEncabezado = document.getElementById('modalEncabezadoImpresion');
+    if (elEncabezado) elEncabezado.innerHTML = `<h2>Reporte Territorial de Lotes Agrupados</h2><p>Municipalidad de Rufino — Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}</p>`;
+
+    const elCuerpoTabla = document.getElementById('modalTablaCuerpo');
+    if (elCuerpoTabla) elCuerpoTabla.innerHTML = HTMLFilas;
+    
+    const formatoContador = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+    const elTotalCaja = document.getElementById('modalTotalCaja');
+    if (elTotalCaja) {
+        elTotalCaja.innerHTML = `
+            <strong>Resumen Acumulado de Selección:</strong><br>
+            • Total Deuda TGI Sincronizada: ${formatoContador.format(totalDeudaTgi)}<br>
+            • Total Deuda Obra Pública: ${formatoContador.format(totalDeudaObra)}
+        `;
+    }
+    
+    const elModalPrev = document.getElementById('modalPrevisualizacion');
+    if (elModalPrev) elModalPrev.style.display = 'flex';
+
+    // RENDERIZADO DEL MAPA CLONADO DE IMPRESIÓN (ZOOM CERCANO AJUSTADO)
+    setTimeout(() => {
+        if (mapaImpresionClonado) {
+            mapaImpresionClonado.remove();
         }
-    };
+        
+        if (!document.getElementById('mapaClonadoImpresion')) return;
+
+        mapaImpresionClonado = L.map('mapaClonadoImpresion', {
+            zoomControl: false, attributionControl: false
+        });
+
+        const capaBaseClon = map.hasLayer(capaSatelital) 
+            ? L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}') 
+            : L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
+        
+        capaBaseClon.addTo(mapaImpresionClonado);
+
+        // Capa general urbana de fondo
+        if (datosTgi) {
+            L.geoJSON(datosTgi, {
+                style: { color: "#bdc3c7", fillColor: "transparent", weight: 0.8, opacity: 0.4 }
+            }).addTo(mapaImpresionClonado);
+        }
+
+        const featuresSeleccionadas = lotesSeleccionados.map(item => item.feature);
+        const capaAgrupadaReporte = L.geoJSON({type: "FeatureCollection", features: featuresSeleccionadas}, {
+            style: function() {
+                return { color: "#8e44ad", fillColor: "#9b59b6", weight: 3, fillOpacity: 0.75 };
+            },
+            onEachFeature: (f, l) => {
+                const padron = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente");
+                if (padron) {
+                    l.bindTooltip(String(padron), {
+                        permanent: true, direction: 'center', className: 'etiqueta-contribuyente-centro-impresion'
+                    });
+                }
+            }
+        }).addTo(mapaImpresionClonado);
+
+        if (featuresSeleccionadas.length > 0) {
+            // AJUSTE: El padding [35, 35] obliga al mapa a centrarse de cerca sobre los lotes, maximizando el nivel de zoom para imprimir
+            mapaImpresionClonado.fitBounds(capaAgrupadaReporte.getBounds(), { padding: [35, 35] });
+        }
+    }, 250);
+}
+
+function abrirModalObra() {
+    let HTMLFilasObra = "";
+    let sumaTotal = 0;
+
+    const divMapa = document.getElementById('mapaClonadoImpresion');
+    if (divMapa) divMapa.remove();
+
+    lotesObraActual.forEach(f => {
+        const p = f.properties;
+        const padronVal = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "-";
+        const nombre = buscarProp(p, "Tit. Nombre") || "-";
+        const domicilio = buscarProp(p, "Ubicacion") || "-";
+        const cuotasAtr = parseInt(buscarProp(p, "Cuotas Atrasadas")) || 0;
+        const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
+        sumaTotal += deuda;
+        
+        HTMLFilasObra += `<tr>
+            <td><span class="link-padron-modal" onclick="irAlLoteDesdeModal('${padronVal}')">${padronVal}</span></td>
+            <td><strong>${nombre}</strong></td>
+            <td>${domicilio}</td>
+            <td style="text-align:center;">${cuotasAtr}</td>
+            <td style="text-align:right; ${deuda > 0 ? 'color: #e74c3c; font-weight: bold;' : ''}">${deuda > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuda) : "$ 0,00"}</td>
+        </tr>`;
+    });
+
+    const elTitulo = document.getElementById('modalTituloObra');
+    if (elTitulo) elTitulo.innerHTML = `🚧 Informe: <strong>${nombreObraActual}</strong>`;
+    
+    const elCuerpoTabla = document.getElementById('modalTablaCuerpo');
+    if (elCuerpoTabla) elCuerpoTabla.innerHTML = HTMLFilasObra;
+    
+    const elTotalCaja = document.getElementById('modalTotalCaja');
+    if (elTotalCaja) elTotalCaja.innerHTML = `Monto Global Adeudado: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sumaTotal)}`;
+    
+    const elModalPrev = document.getElementById('modalPrevisualizacion');
+    if (elModalPrev) elModalPrev.style.display = 'flex';
 }
 
 function limpiarMedidasLote() {
@@ -261,15 +579,14 @@ function limpiarMedidasLote() {
     lineasLadosActuales = [];
 }
 
-// FILTRADO UNIFICADO (Celulares y PC alineados)
 function filtrarTodo(e) {
     const esMovil = window.innerWidth <= 768;
     
     if (e && e.target) {
-        if (e.target.id === "inputApellido") document.getElementById("inputApellidoMovil").value = e.target.value;
-        if (e.target.id === "inputApellidoMovil") document.getElementById("inputApellido").value = e.target.value;
-        if (e.target.id === "inputCalle") document.getElementById("inputCalleMovil").value = e.target.value;
-        if (e.target.id === "inputCalleMovil") document.getElementById("inputCalle").value = e.target.value;
+        if (e.target.id === "inputApellido" && document.getElementById("inputApellidoMovil")) document.getElementById("inputApellidoMovil").value = e.target.value;
+        if (e.target.id === "inputApellidoMovil" && document.getElementById("inputApellido")) document.getElementById("inputApellido").value = e.target.value;
+        if (e.target.id === "inputCalle" && document.getElementById("inputCalleMovil")) document.getElementById("inputCalleMovil").value = e.target.value;
+        if (e.target.id === "inputCalleMovil" && document.getElementById("inputCalle")) document.getElementById("inputCalle").value = e.target.value;
     }
 
     const apellido = document.getElementById(esMovil ? 'inputApellidoMovil' : 'inputApellido').value.toLowerCase();
@@ -278,15 +595,17 @@ function filtrarTodo(e) {
     const sugApp = document.getElementById(esMovil ? 'listaSugerenciasMovil' : 'listaSugerencias');
     const sugCalle = document.getElementById(esMovil ? 'listaSugerenciasCalleMovil' : 'listaSugerenciasCalle');
     
-    document.getElementById(esMovil ? 'listaSugerencias' : 'listaSugerenciasMovil').style.display = "none";
-    document.getElementById(esMovil ? 'listaSugerenciasCalle' : 'listaSugerenciasCalleMovil').style.display = "none";
+    const sugD1 = document.getElementById(esMovil ? 'listaSugerencias' : 'listaSugerenciasMovil'); if (sugD1) sugD1.style.display = "none";
+    const sugD2 = document.getElementById(esMovil ? 'listaSugerenciasCalle' : 'listaSugerenciasCalleMovil'); if (sugD2) sugD2.style.display = "none";
 
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
-    document.getElementById('selectSeccion').value = "";
-    document.getElementById('selectObra').value = "";
-    document.getElementById('panelEstadisticaObra').style.display = "none";
-    document.getElementById('btnImprimirObra').style.display = "none"; 
+    
+    const sSeccion = document.getElementById('selectSeccion'); if (sSeccion) sSeccion.value = "";
+    const sObra = document.getElementById('selectObra'); if (sObra) sObra.value = "";
+    
+    if(document.getElementById('panelEstadisticaObra')) document.getElementById('panelEstadisticaObra').style.display = "none";
+    if(document.getElementById('btnImprimirObra')) document.getElementById('btnImprimirObra').style.display = "none"; 
 
     listadoLotesFiltroActual = datosTgi.features.filter(f => {
         const nom = (buscarProp(f.properties, "Tit. Nombre") || "").toLowerCase();
@@ -302,10 +621,10 @@ function filtrarTodo(e) {
         let sugerenciasUnicas = [...new Set(callesLimpias)].filter(c => c.toLowerCase().includes(calleInput)).sort().slice(0, 8);
         let htmlC = "";
         sugerenciasUnicas.forEach(c => { htmlC += `<div class="item-sugerencia" onclick="seleccionarCalle('${c.replace(/'/g, "\\'")}')">🛣️ ${c}</div>`; });
-        sugCalle.innerHTML = htmlC; sugCalle.style.display = htmlC ? "block" : "none";
+        if(sugCalle) { sugCalle.innerHTML = htmlC; sugCalle.style.display = htmlC ? "block" : "none"; }
     } else { 
-        sugCalle.style.display = "none";
-        document.getElementById('panelEstadisticaCalle').style.display = "none";
+        if(sugCalle) sugCalle.style.display = "none";
+        if(document.getElementById('panelEstadisticaCalle')) document.getElementById('panelEstadisticaCalle').style.display = "none";
     }
 
     if (apellido.length >= 2) {
@@ -322,24 +641,24 @@ function filtrarTodo(e) {
                         </span>
                      </div>`;
         });
-        sugApp.innerHTML = html; sugApp.style.display = html ? "block" : "none";
-    } else { sugApp.style.display = "none"; }
+        if(sugApp) { sugApp.innerHTML = html; sugApp.style.display = html ? "block" : "none"; }
+    } else { if(sugApp) sugApp.style.display = "none"; }
 }
 
-document.getElementById('inputApellido').oninput = filtrarTodo;
-document.getElementById('inputCalle').oninput = filtrarTodo;
-document.getElementById('inputApellidoMovil').oninput = filtrarTodo;
-document.getElementById('inputCalleMovil').oninput = filtrarTodo;
+if (document.getElementById('inputApellido')) document.getElementById('inputApellido').oninput = filtrarTodo;
+if (document.getElementById('inputCalle')) document.getElementById('inputCalle').oninput = filtrarTodo;
+if (document.getElementById('inputApellidoMovil')) document.getElementById('inputApellidoMovil').oninput = filtrarTodo;
+if (document.getElementById('inputCalleMovil')) document.getElementById('inputCalleMovil').oninput = filtrarTodo;
 
 window.seleccionarCalle = function(nombreCalleLimpia) {
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
     
-    document.getElementById('inputCalle').value = nombreCalleLimpia;
-    document.getElementById('inputCalleMovil').value = nombreCalleLimpia;
+    if(document.getElementById('inputCalle')) document.getElementById('inputCalle').value = nombreCalleLimpia;
+    if(document.getElementById('inputCalleMovil')) document.getElementById('inputCalleMovil').value = nombreCalleLimpia;
     
-    document.getElementById('listaSugerenciasCalle').style.display = "none";
-    document.getElementById('listaSugerenciasCalleMovil').style.display = "none";
+    if(document.getElementById('listaSugerenciasCalle')) document.getElementById('listaSugerenciasCalle').style.display = "none";
+    if(document.getElementById('listaSugerenciasCalleMovil')) document.getElementById('listaSugerenciasCalleMovil').style.display = "none";
     
     listadoLotesFiltroActual = datosTgi.features.filter(f => (buscarProp(f.properties, "Ubicacion") || "").toLowerCase().includes(nombreCalleLimpia.toLowerCase()));
     dibujarMapa(listadoLotesFiltroActual);
@@ -360,22 +679,17 @@ window.seleccionarCalle = function(nombreCalleLimpia) {
     generarEstadisticaCalle(listadoLotesFiltroActual, nombreCalleLimpia);
 };
 
-window.togglePanelDerecho = function() {
-    const cuerpo = document.getElementById('cuerpoD');
-    const btn = document.getElementById('btnT');
-    const cerrado = cuerpo.style.display === "none";
-    cuerpo.style.display = cerrado ? "block" : "none";
-    btn.innerText = cerrado ? "➖" : "➕";
-};
-
 function ocultarContenedorGraficoGeneral() {
-    document.getElementById('contenedorGraficoGeneral').style.display = "none";
+    const cont = document.getElementById('contenedorGraficoGeneral');
+    if (cont) cont.style.display = "none";
     if (miGraficoG) { miGraficoG.destroy(); miGraficoG = null; }
 }
 
 window.solicitarGraficoGeneral = function() {
     const contenedor = document.getElementById('contenedorGraficoGeneral');
-    contenedor.style.display = "block";
+    const panelL = document.getElementById('panelLateral');
+    if(panelL) panelL.classList.add('abierto');
+    if (contenedor) contenedor.style.display = "block";
     actualizarGraficoGeneral(listadoLotesFiltroActual);
 };
 
@@ -388,8 +702,11 @@ function actualizarGraficoGeneral(features) {
     });
     const total = s + v + d;
 
+    const canvasG = document.getElementById('graficoBarras');
+    if (!canvasG) return;
+
     if (miGraficoG) miGraficoG.destroy();
-    miGraficoG = new Chart(document.getElementById('graficoBarras'), {
+    miGraficoG = new Chart(canvasG, {
         type: 'doughnut',
         data: { 
             labels: ['Al Día', 'A Vencer', 'Deuda'], 
@@ -400,28 +717,23 @@ function actualizarGraficoGeneral(features) {
             }] 
         },
         options: { 
-            responsive: true,
-            maintainAspectRatio: false, 
+            responsive: true, maintainAspectRatio: false, 
             plugins: { 
                 legend: {
-                    position: 'right',
+                    position: 'bottom',
                     labels: {
-                        boxWidth: 10,
-                        font: { size: 9, weight: 'bold' },
-                        color: '#2c3e50',
+                        boxWidth: 8, font: { size: 9 }, color: '#2c3e50',
                         generateLabels: function(chart) {
                             const data = chart.data;
                             if (data.labels.length && data.datasets.length) {
                                 return data.labels.map(function(label, i) {
                                     const val = data.datasets[0].data[i];
-                                    const porc = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                    const porc = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
                                     return {
                                         text: `${label}: ${val} (${porc}%)`,
                                         fillStyle: data.datasets[0].backgroundColor[i],
                                         strokeStyle: data.datasets[0].backgroundColor[i],
-                                        lineWidth: 0,
-                                        hidden: false,
-                                        index: i
+                                        lineWidth: 0, hidden: false, index: i
                                     };
                                 });
                             }
@@ -442,12 +754,12 @@ window.seleccionarLotePorPadron = function(padronVal) {
         return String(idP) === String(padronVal);
     });
     if (lote) {
-        document.getElementById('listaSugerencias').style.display = "none";
-        document.getElementById('listaSugerenciasMovil').style.display = "none";
+        if(document.getElementById('listaSugerencias')) document.getElementById('listaSugerencias').style.display = "none";
+        if(document.getElementById('listaSugerenciasMovil')) document.getElementById('listaSugerenciasMovil').style.display = "none";
         
         const nombreTitular = buscarProp(lote.properties, "Tit. Nombre");
-        document.getElementById('inputApellido').value = nombreTitular;
-        document.getElementById('inputApellidoMovil').value = nombreTitular;
+        if(document.getElementById('inputApellido')) document.getElementById('inputApellido').value = nombreTitular;
+        if(document.getElementById('inputApellidoMovil')) document.getElementById('inputApellidoMovil').value = nombreTitular;
         
         mostrarFicha(lote.properties);
         
@@ -501,28 +813,30 @@ function mostrarFicha(p) {
                 <span class="valor" style="font-weight: bold; color: #334155;">${deudaFechaValor}</span>
              </p>`;
     
-    panelFlotante.style.display = "flex";
-    cuerpoFlotante.innerHTML = html;
+    if(panelFlotante) panelFlotante.style.display = "flex";
+    if(cuerpoFlotante) cuerpoFlotante.innerHTML = html;
 
     if (window.innerWidth <= 768) {
-        document.getElementById('panelLateral').classList.remove('abierto');
+        const panelL = document.getElementById('panelLateral');
+        if(panelL) panelL.classList.remove('abierto');
     }
 }
 
 window.cerrarFicha = () => { 
-    document.getElementById('panelFichaFlotante').style.display = "none"; 
+    if(document.getElementById('panelFichaFlotante')) document.getElementById('panelFichaFlotante').style.display = "none"; 
     limpiarMedidasLote(); 
     
-    document.getElementById('inputApellido').value = "";
-    document.getElementById('inputApellidoMovil').value = "";
-    document.getElementById('inputCalle').value = "";
-    document.getElementById('inputCalleMovil').value = "";
-    document.getElementById('selectSeccion').value = "";
-    document.getElementById('selectObra').value = "";
+    if(document.getElementById('inputApellido')) document.getElementById('inputApellido').value = "";
+    if(document.getElementById('inputApellidoMovil')) document.getElementById('inputApellidoMovil').value = "";
+    if(document.getElementById('inputCalle')) document.getElementById('inputCalle').value = "";
+    if(document.getElementById('inputCalleMovil')) document.getElementById('inputCalleMovil').value = "";
     
-    document.getElementById('panelEstadisticaCalle').style.display = "none";
-    document.getElementById('panelEstadisticaObra').style.display = "none";
-    document.getElementById('btnImprimirObra').style.display = "none";
+    const sSeccion = document.getElementById('selectSeccion'); if (sSeccion) sSeccion.value = "";
+    const sObra = document.getElementById('selectObra'); if (sObra) sObra.value = "";
+    
+    if(document.getElementById('panelEstadisticaCalle')) document.getElementById('panelEstadisticaCalle').style.display = "none";
+    if(document.getElementById('panelEstadisticaObra')) document.getElementById('panelEstadisticaObra').style.display = "none";
+    if(document.getElementById('btnImprimirObra')) document.getElementById('btnImprimirObra').style.display = "none";
     ocultarContenedorGraficoGeneral();
 
     if (datosTgi && datosTgi.features) {
@@ -532,58 +846,7 @@ window.cerrarFicha = () => {
     }
 };
 
-function inicializarDesplegableSecciones(features) {
-    const select = document.getElementById('selectSeccion');
-    let seccionesUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Seccion") || "").trim()))].filter(s => s !== "").sort((a, b) => (parseInt(a) || a) - (parseInt(b) || b));
-    select.innerHTML = '<option value="">🧱 Seleccionar Sección...</option>';
-    seccionesUnicas.forEach(s => { const option = document.createElement('option'); option.value = s; option.textContent = `Sección ${s}`; select.appendChild(option); });
-}
-
-document.getElementById('selectSeccion').onchange = function() {
-    const numSeccion = this.value;
-    limpiarMedidasLote();
-    ocultarContenedorGraficoGeneral();
-    document.getElementById('inputApellido').value = ""; document.getElementById('inputApellidoMovil').value = "";
-    document.getElementById('inputCalle').value = ""; document.getElementById('inputCalleMovil').value = "";
-    document.getElementById('selectObra').value = ""; 
-    document.getElementById('panelEstadisticaCalle').style.display = "none"; document.getElementById('panelEstadisticaObra').style.display = "none"; document.getElementById('btnImprimirObra').style.display = "none";
-    if (!numSeccion) { 
-        listadoLotesFiltroActual = datosTgi.features;
-        dibujarMapa(datosTgi.features); return; 
-    }
-    listadoLotesFiltroActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Seccion") || "").trim() === numSeccion);
-    dibujarMapa(listadoLotesFiltroActual);
-    if (capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
-};
-
-function inicializarDesplegableObras(features) {
-    const select = document.getElementById('selectObra');
-    let obrasUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Obras") || "").trim()))].filter(o => o !== "" && o.toLowerCase() !== "null").sort();
-    select.innerHTML = '<option value="">🚧 Seleccionar Obra...</option>';
-    obrasUnicas.forEach(o => { const option = document.createElement('option'); option.value = o; option.textContent = o; select.appendChild(option); });
-}
-
-document.getElementById('selectObra').onchange = function() {
-    nombreObraActual = this.value; 
-    limpiarMedidasLote();
-    ocultarContenedorGraficoGeneral();
-    document.getElementById('inputApellido').value = ""; document.getElementById('inputApellidoMovil').value = "";
-    document.getElementById('inputCalle').value = ""; document.getElementById('inputCalleMovil').value = "";
-    document.getElementById('selectSeccion').value = "";
-    document.getElementById('panelEstadisticaCalle').style.display = "none";
-    if (!nombreObraActual) {
-        document.getElementById('panelEstadisticaObra').style.display = "none"; document.getElementById('btnImprimirObra').style.display = "none"; 
-        listadoLotesFiltroActual = datosTgi.features;
-        dibujarMapa(datosTgi.features); return;
-    }
-    lotesObraActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Obras") || "").trim() === nombreObraActual); 
-    listadoLotesFiltroActual = lotesObraActual;
-    dibujarMapa(lotesObraActual); generarEstadisticaObra(lotesObraActual, nombreObraActual);
-    if (capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
-    document.getElementById('btnImprimirObra').style.display = "block"; 
-};
-
-function generarEstadisticaCalle(features, nombre) {
+function generarEstadisticaCalle(features, textCalle) {
     let alDia=0, vencer=0, deuda=0;
     features.forEach(f => {
         const deu = limpiarMontoDeuda(f.properties);
@@ -595,22 +858,31 @@ function generarEstadisticaCalle(features, nombre) {
     const porcDeuda = total > 0 ? ((deuda / total) * 100).toFixed(1) : 0;
     const porcAlDia = total > 0 ? (((alDia + vencer) / total) * 100).toFixed(1) : 0;
 
-    document.getElementById('panelEstadisticaCalle').style.display = "block";
-    document.getElementById('statsCalleContenido').innerHTML = `
-        <p style="font-size:10px; margin:5px 0;">📍 <strong>${nombre}</strong></p>
-        <p style="font-size:11px; margin:0;">Total: <strong>${total}</strong> registros</p>
-        <span class="etiqueta-porcentaje">CUMPLIMIENTO: ${porcAlDia}%</span>
-        <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcAlDia}%; background:#2ecc71;"></div></div>
-        <span class="etiqueta-porcentaje">MOROSIDAD: ${porcDeuda}%</span>
-        <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcDeuda}%; background:#e74c3c;"></div></div>
-    `;
+    const panelCalle = document.getElementById('panelEstadisticaCalle');
+    if (!panelCalle) return;
+
+    panelCalle.style.display = "block";
+    const statsCc = document.getElementById('statsCalleContenido');
+    if(statsCc) {
+        statsCc.innerHTML = `
+            <p style="font-size:10px; margin:5px 0;">📍 <strong>${textCalle}</strong></p>
+            <p style="font-size:11px; margin:0;">Total: <strong>${total}</strong> registros</p>
+            <span class="etiqueta-porcentaje">CUMPLIMIENTO: ${porcAlDia}%</span>
+            <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcAlDia}%; background:#2ecc71;"></div></div>
+            <span class="etiqueta-porcentaje">MOROSIDAD: ${porcDeuda}%</span>
+            <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcDeuda}%; background:#e74c3c;"></div></div>
+        `;
+    }
 
     if (miGraficoC) miGraficoC.destroy();
-    miGraficoC = new Chart(document.getElementById('graficoCalle'), {
-        type: 'doughnut',
-        data: { datasets: [{ data: [alDia, vencer, deuda], backgroundColor: ['#2ecc71', '#f1c40f', '#e74c3c'], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, cutout: '65%' }
-    });
+    const canC = document.getElementById('graficoCalle');
+    if(canC) {
+        miGraficoC = new Chart(canC, {
+            type: 'doughnut',
+            data: { datasets: [{ data: [alDia, vencer, deuda], backgroundColor: ['#2ecc71', '#f1c40f', '#e74c3c'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, cutout: '65%' }
+        });
+    }
 }
 
 function generarEstadisticaObra(features, textObra) {
@@ -625,25 +897,37 @@ function generarEstadisticaObra(features, textObra) {
     const porcAlDia = total > 0 ? ((alDia / total) * 100).toFixed(1) : 0;
     const montoFormat = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sumaMontoDeudaObra);
 
-    document.getElementById('panelEstadisticaObra').style.display = "block";
-    document.getElementById('statsObraContenido').innerHTML = `
-        <p style="font-size:10px; margin:5px 0;">🚧 <strong>${textObra}</strong></p>
-        <p style="font-size:11px; margin:0;">Lotes afectados: <strong>${total}</strong></p>
-        <p style="font-size:11px; margin: 4px 0; color:#e74c3c;">Deuda Total Obra: <strong style="font-size:13px;">${montoFormat}</strong></p>
-        <span class="etiqueta-porcentaje">VECINOS AL DÍA: ${porcAlDia}%</span>
-        <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcAlDia}%; background:#2ecc71;"></div></div>
-        <span class="etiqueta-porcentaje">VECINOS CON DEUDA: ${porcDeuda}%</span>
-        <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcDeuda}%; background:#e74c3c;"></div></div>
-    `;
+    const panelO = document.getElementById('panelEstadisticaObra');
+    if(panelO) panelO.style.display = "block";
+    const statsOc = document.getElementById('statsObraContenido');
+    if(statsOc) {
+        statsOc.innerHTML = `
+            <p style="font-size:10px; margin:5px 0;">🚧 <strong>${textObra}</strong></p>
+            <p style="font-size:11px; margin:0;">Lotes afectados: <strong>${total}</strong></p>
+            <p style="font-size:11px; margin: 4px 0; color:#e74c3c;">Deuda Total Obra: <strong style="font-size:13px;">${montoFormat}</strong></p>
+            <span class="etiqueta-porcentaje">VECINOS AL DÍA: ${porcAlDia}%</span>
+            <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcAlDia}%; background:#2ecc71;"></div></div>
+            <span class="etiqueta-porcentaje">VECINOS CON DEUDA: ${porcDeuda}%</span>
+            <div class="barra-progreso"><div class="progreso-llenado" style="width:${porcDeuda}%; background:#e74c3c;"></div></div>
+        `;
+    }
     if (miGraficoO) miGraficoO.destroy();
-    miGraficoO = new Chart(document.getElementById('graficoObra'), {
-        type: 'doughnut', data: { datasets: [{ data: [alDia, conDeuda], backgroundColor: ['#2ecc71', '#e74c3c'], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, cutout: '65%' }
-    });
+    const canO = document.getElementById('graficoObra');
+    if(canO) {
+        miGraficoO = new Chart(canO, {
+            type: 'doughnut', data: { datasets: [{ data: [alDia, conDeuda], backgroundColor: ['#2ecc71', '#e74c3c'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, cutout: '65%' }
+        });
+    }
 }
 
 window.cerrarModalObra = function() {
-    document.getElementById('modalPrevisualizacion').style.display = 'none';
+    const elModal = document.getElementById('modalPrevisualizacion');
+    if(elModal) elModal.style.display = 'none';
+    if (mapaImpresionClonado) {
+        mapaImpresionClonado.remove();
+        mapaImpresionClonado = null;
+    }
 };
 
 window.irAlLoteDesdeModal = function(padronVal) {
@@ -651,35 +935,5 @@ window.irAlLoteDesdeModal = function(padronVal) {
     window.seleccionarLotePorPadron(padronVal);
 };
 
-document.getElementById('btnImprimirObra').onclick = function() {
-    if (!lotesObraActual || lotesObraActual.length === 0) return;
-    let HTMLFilasObra = "", sumaTotal = 0;
-    const lotesOrdenados = [...lotesObraActual].sort((a, b) => limpiarMontoGenerico(buscarProp(b.properties, "Deuda Obra")) - limpiarMontoGenerico(buscarProp(a.properties, "Deuda Obra")));
-
-    lotesOrdenados.forEach(f => {
-        const p = f.properties;
-        const padronVal = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "-";
-        const nombre = buscarProp(p, "Tit. Nombre") || "-";
-        const domicilio = buscarProp(p, "Ubicacion") || "-";
-        const cuotasAtr = parseInt(buscarProp(p, "Cuotas Atrasadas")) || 0;
-        const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
-        sumaTotal += deuda;
-        
-        HTMLFilasObra += `<tr>
-            <td><span class="link-padron-modal" onclick="irAlLoteDesdeModal('${padronVal}')">${padronVal}</span></td>
-            <td><strong>${nombre}</strong></td>
-            <td>${domicilio}</td>
-            <td style="text-align:center;">${cuotasAtr}</td>
-            <td style="text-align:right; ${deuda > 0 ? 'color: #e74c3c; font-weight: bold;' : ''}">${deuda > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuda) : "$ 0,00"}</td>
-        </tr>`;
-    });
-
-    document.getElementById('modalTituloObra').innerHTML = `🚧 Informe de Obra Pública: <strong>${nombreObraActual}</strong>`;
-    document.getElementById('modalEncabezadoImpresion').innerHTML = `<h2>Informe de Obra Pública</h2><p>🚧 <strong>${nombreObraActual}</strong></p>`;
-    document.getElementById('modalTablaCuerpo').innerHTML = HTMLFilasObra;
-    document.getElementById('modalTotalCaja').innerText = `MONTO TOTAL ADEUDADO: ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(sumaTotal)}`;
-    
-    document.getElementById('modalPrevisualizacion').style.display = 'flex';
-};
-
+// 3. CARGA INICIAL DE DATOS
 cargarDatos();
