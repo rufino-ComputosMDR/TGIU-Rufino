@@ -9,7 +9,7 @@
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f0f0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
 
-        /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS (PC) */
+        /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS */
         .barra-superior {
             position: absolute; top: 10px; left: 10px; right: 10px; z-index: 2000;
             background: white; padding: 10px 15px; display: flex; align-items: center; gap: 10px;
@@ -126,15 +126,21 @@
             .no-print { display: none !important; }
         }
 
-        /* DISEÑO EXCLUSIVO CELULARES */
+        /* DISEÑO EXCLUSIVO CELULARES Y DISPOSITIVOS MÓVILES */
         @media (max-width: 768px) {
-            .barra-superior { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; padding: 10px !important; border-radius: 8px !important; }
-            .contenedor-busquedas { flex-direction: column !important; gap: 6px !important; width: 100% !important; }
-            .btn-hamburguesa { align-self: flex-start !important; padding: 2px 5px !important; }
-            .btn-filtro-baldios, .btn-filtro-satelite { width: 100% !important; text-align: center !important; padding: 8px !important; font-size: 12px !important; }
-            .panel-lateral { width: 80% !important; max-width: 300px !important; left: -350px !important; }
+            .barra-superior { padding: 8px 12px !important; border-radius: 8px !important; gap: 6px !important; }
+            
+            /* Ocultamos las búsquedas de la barra superior en celular */
+            .barra-superior .contenedor-busquedas { display: none !important; }
+            
+            /* Hacemos visibles las búsquedas dentro de la hamburguesa lateral */
+            .panel-lateral .contenedor-busquedas { display: flex !important; flex-direction: column !important; margin-bottom: 10px !important; }
+            
+            .btn-filtro-baldios, .btn-filtro-satelite { font-size: 11px !important; padding: 8px 10px !important; flex: 1; text-align: center; }
+            .panel-lateral { width: 85% !important; max-width: 320px !important; left: -360px !important; }
             .panel-lateral.abierto { left: 0 !important; }
-            .ficha-flotante-lote { top: auto !important; bottom: 15px !important; left: 10px !important; right: 10px !important; width: auto !important; max-height: 40vh !important; }
+            
+            .ficha-flotante-lote { top: auto !important; bottom: 15px !important; left: 10px !important; right: 10px !important; width: auto !important; max-height: 42vh !important; }
             .panel-derecho { top: auto !important; bottom: 75px !important; right: 10px !important; left: 10px !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
             .totalizador-baldios-flotante { bottom: 12px !important; font-size: 11px !important; padding: 6px 12px !important; }
         }
@@ -144,6 +150,7 @@
 
     <div class="barra-superior no-print">
         <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰</button>
+        
         <div class="contenedor-busquedas">
             <div class="wrapper-input">
                 <input type="text" id="inputApellido" placeholder="🔎 Buscar por Apellido o Nro. Padrón..." autocomplete="off">
@@ -154,6 +161,7 @@
                 <div id="listaSugerenciasCalle"></div>
             </div>
         </div>
+
         <button id="btnToggleSatelite" class="btn-filtro-satelite">🛰️ Satelital: APAGADO</button>
         <button id="btnToggleBaldios" class="btn-filtro-baldios">⬜ Resaltar Baldíos: APAGADO</button>
     </div>
@@ -162,6 +170,17 @@
         <div class="header-panel-lateral">
             <h2>Filtros y Capas</h2>
             <button class="btn-cerrar-panel" onclick="togglePanelLateral()">✕</button>
+        </div>
+
+        <div class="contenedor-busquedas" style="display: none;">
+            <div class="wrapper-input" style="margin-bottom: 8px;">
+                <input type="text" id="inputApellidoMovil" placeholder="🔎 Buscar por Apellido o Padrón..." autocomplete="off">
+                <div id="listaSugerenciasMovil" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; display: none; z-index: 3100;"></div>
+            </div>
+            <div class="wrapper-input">
+                <input type="text" id="inputCalleMovil" placeholder="🛣️ Buscar por Calle..." autocomplete="off">
+                <div id="listaSugerenciasCalleMovil" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; display: none; z-index: 3100;"></div>
+            </div>
         </div>
 
         <select id="selectSeccion">

@@ -11,10 +11,10 @@ const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&
     attribution: '© Google Maps'
 });
 
-// 2. INICIALIZACIÓN DEL MAPA (Arranca con calles)
+// 2. INICIALIZACIÓN DEL MAPA (Cambio a Zoom 14 para ver más de lejos al inicio)
 const map = L.map('map', {
     center: [-34.268, -62.712],
-    zoom: 15,
+    zoom: 14, 
     layers: [capaCalles] 
 });
 
@@ -205,7 +205,6 @@ function calcularTotalBaldios() {
     document.getElementById('numBaldios').innerText = contador;
 }
 
-// CONFIGURACIÓN DE LOS DOS BOTONES DE LA BARRA
 function vincularBotonesBarra() {
     const btnB = document.getElementById('btnToggleBaldios');
     const panelTotalizador = document.getElementById('totalizadorBaldios');
@@ -246,11 +245,27 @@ function limpiarMedidasLote() {
     lineasLadosActuales = [];
 }
 
-function filtrarTodo() {
-    const apellido = document.getElementById('inputApellido').value.toLowerCase();
-    const calleInput = document.getElementById('inputCalle').value.toLowerCase();
-    const sugApp = document.getElementById('listaSugerencias');
-    const sugCalle = document.getElementById('listaSugerenciasCalle');
+// FILTRADO UNIFICADO (Soporta dinámicamente inputs de Escritorio y de Celular)
+function filtrarTodo(e) {
+    const esMovil = window.innerWidth <= 768;
+    
+    // Sincronizar valores entre cajas si el usuario escribe desde una u otra
+    if (e && e.target) {
+        if (e.target.id === "inputApellido") document.getElementById("inputApellidoMovil").value = e.target.value;
+        if (e.target.id === "inputApellidoMovil") document.getElementById("inputApellido").value = e.target.value;
+        if (e.target.id === "inputCalle") document.getElementById("inputCalleMovil").value = e.target.value;
+        if (e.target.id === "inputCalleMovil") document.getElementById("inputCalle").value = e.target.value;
+    }
+
+    const apellido = document.getElementById(esMovil ? 'inputApellidoMovil' : 'inputApellido').value.toLowerCase();
+    const calleInput = document.getElementById(esMovil ? 'inputCalleMovil' : 'inputCalle').value.toLowerCase();
+    
+    const sugApp = document.getElementById(esMovil ? 'listaSugerenciasMovil' : 'listaSugerencias');
+    const sugCalle = document.getElementById(esMovil ? 'listaSugerenciasCalleMovil' : 'listaSugerenciasCalle');
+    
+    // Ocultar los opuestos para evitar flotantes fantasma
+    document.getElementById(esMovil ? 'listaSugerencias' : 'listaSugerenciasMovil').style.display = "none";
+    document.getElementById(esMovil ? 'listaSugerenciasCalle' : 'listaSugerenciasCalleMovil').style.display = "none";
 
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
@@ -299,12 +314,18 @@ function filtrarTodo() {
 
 document.getElementById('inputApellido').oninput = filtrarTodo;
 document.getElementById('inputCalle').oninput = filtrarTodo;
+document.getElementById('inputApellidoMovil').oninput = filtrarTodo;
+document.getElementById('inputCalleMovil').oninput = filtrarTodo;
 
 window.seleccionarCalle = function(nombreCalleLimpia) {
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
+    
     document.getElementById('inputCalle').value = nombreCalleLimpia;
+    document.getElementById('inputCalleMovil').value = nombreCalleLimpia;
+    
     document.getElementById('listaSugerenciasCalle').style.display = "none";
+    document.getElementById('listaSugerenciasCalleMovil').style.display = "none";
     
     listadoLotesFiltroActual = datosTgi.features.filter(f => (buscarProp(f.properties, "Ubicacion") || "").toLowerCase().includes(nombreCalleLimpia.toLowerCase()));
     dibujarMapa(listadoLotesFiltroActual);
@@ -408,7 +429,12 @@ window.seleccionarLotePorPadron = function(padronVal) {
     });
     if (lote) {
         document.getElementById('listaSugerencias').style.display = "none";
-        document.getElementById('inputApellido').value = buscarProp(lote.properties, "Tit. Nombre");
+        document.getElementById('listaSugerenciasMovil').style.display = "none";
+        
+        const nombreTitular = buscarProp(lote.properties, "Tit. Nombre");
+        document.getElementById('inputApellido').value = nombreTitular;
+        document.getElementById('inputApellidoMovil').value = nombreTitular;
+        
         mostrarFicha(lote.properties);
         
         capaTgi.eachLayer(l => {
@@ -422,7 +448,6 @@ window.seleccionarLotePorPadron = function(padronVal) {
     }
 };
 
-// FORMATEA LOS IMPORTES A FORMATO PESOS ARGENTINOS ($)
 function mostrarFicha(p) {
     const panelFlotante = document.getElementById('panelFichaFlotante');
     const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
@@ -447,7 +472,6 @@ function mostrarFicha(p) {
         if(clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia" && clavePrevia !== "deudafecha") { 
             let valorMostrar = p[k];
             
-            // Si la clave es "deuda tgi" o "deuda obra", forzamos pesos ($)
             if (clavePrevia === "deuda tgi" || clavePrevia === "deuda obra") {
                 let montoNumerico = limpiarMontoGenerico(valorMostrar);
                 valorMostrar = formatter.format(montoNumerico);
@@ -476,7 +500,9 @@ window.cerrarFicha = () => {
     limpiarMedidasLote(); 
     
     document.getElementById('inputApellido').value = "";
+    document.getElementById('inputApellidoMovil').value = "";
     document.getElementById('inputCalle').value = "";
+    document.getElementById('inputCalleMovil').value = "";
     document.getElementById('selectSeccion').value = "";
     document.getElementById('selectObra').value = "";
     
@@ -488,7 +514,7 @@ window.cerrarFicha = () => {
     if (datosTgi && datosTgi.features) {
         listadoLotesFiltroActual = datosTgi.features;
         dibujarMapa(datosTgi.features);
-        map.setView([-34.268, -62.712], 15);
+        map.setView([-34.268, -62.712], 14); // Mantiene el inicio alejado
     }
 };
 
@@ -503,7 +529,9 @@ document.getElementById('selectSeccion').onchange = function() {
     const numSeccion = this.value;
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
-    document.getElementById('inputApellido').value = ""; document.getElementById('inputCalle').value = ""; document.getElementById('selectObra').value = ""; 
+    document.getElementById('inputApellido').value = ""; document.getElementById('inputApellidoMovil').value = "";
+    document.getElementById('inputCalle').value = ""; document.getElementById('inputCalleMovil').value = "";
+    document.getElementById('selectObra').value = ""; 
     document.getElementById('panelEstadisticaCalle').style.display = "none"; document.getElementById('panelEstadisticaObra').style.display = "none"; document.getElementById('btnImprimirObra').style.display = "none";
     if (!numSeccion) { 
         listadoLotesFiltroActual = datosTgi.features;
@@ -525,7 +553,9 @@ document.getElementById('selectObra').onchange = function() {
     nombreObraActual = this.value; 
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
-    document.getElementById('inputApellido').value = ""; document.getElementById('inputCalle').value = ""; document.getElementById('selectSeccion').value = "";
+    document.getElementById('inputApellido').value = ""; document.getElementById('inputApellidoMovil').value = "";
+    document.getElementById('inputCalle').value = ""; document.getElementById('inputCalleMovil').value = "";
+    document.getElementById('selectSeccion').value = "";
     document.getElementById('panelEstadisticaCalle').style.display = "none";
     if (!nombreObraActual) {
         document.getElementById('panelEstadisticaObra').style.display = "none"; document.getElementById('btnImprimirObra').style.display = "none"; 
