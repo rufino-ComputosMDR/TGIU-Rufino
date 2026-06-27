@@ -155,7 +155,7 @@ async function cargarDatos() {
 function configurarSelectoresDinamicos() {
     const selectS = document.getElementById('selectSeccion');
     const selectO = document.getElementById('selectObra');
-    if (!selectS || !selectO) return;
+    if (!selectS || !selectO || !datosTgi) return;
 
     let secciones = new Set();
     let obras = new Set();
@@ -182,6 +182,7 @@ function configurarSelectoresDinamicos() {
 }
 
 function filtrarPorSelectoresMenu() {
+    if (!datosTgi) return;
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
 
@@ -226,7 +227,9 @@ function dibujarMapa(features) {
         style: estiloLote,
         onEachFeature: (f, l) => {
             l.on('click', (e) => { 
-                L.DomEvent.stopPropagation(e); 
+                if (e && e.originalEvent) {
+                    L.DomEvent.stopPropagation(e); 
+                }
                 
                 // CONTROL DE SELECCIÓN MÚLTIPLE DE LOTES
                 if (modoSeleccionMultiple) {
@@ -246,12 +249,12 @@ function dibujarMapa(features) {
                         lotesSeleccionados.push({ feature: f, layer: l });
                         l.setStyle({ color: "#8e44ad", fillColor: "#9b59b6", weight: 3, fillOpacity: 0.85 });
                         
-                        // INYECCIÓN DEL NÚMERO DE CONTRIBUYENTE EN EL CENTRO
+                        // SE MODIFICÓ LA CLASE CSS AQUÍ A 'etiqueta-tgi-lote' PARA DEJARLO LIMPIO Y CON CONTORNO BLANCO
                         if (padronActual) {
                             const centroLote = l.getBounds().getCenter();
                             const etiquetaCentro = L.circleMarker(centroLote, { radius: 0, opacity: 0, fillOpacity: 0 }).addTo(map);
                             etiquetaCentro.bindTooltip(String(padronActual), {
-                                permanent: true, direction: 'center', className: 'etiqueta-contribuyente-centro'
+                                permanent: true, direction: 'center', className: 'etiqueta-tgi-lote'
                             }).openTooltip();
                             l.idEtiquetaCentro = etiquetaCentro;
                         }
@@ -439,11 +442,6 @@ function abrirModalImpresionMultiple() {
     if (contenedorModal && !divMapa) {
         divMapa = document.createElement('div');
         divMapa.id = 'mapaClonadoImpresion';
-        divMapa.style.width = '100%';
-        divMapa.style.height = '400px';
-        divMapa.style.marginBottom = '20px';
-        divMapa.style.borderRadius = '8px';
-        divMapa.style.border = '1px solid #ccc';
         contenedorModal.insertBefore(divMapa, contenedorModal.firstChild);
     }
 
@@ -458,31 +456,31 @@ function abrirModalImpresionMultiple() {
         totalDeudaTgi += deuTgi;
         totalDeudaObra += deuObra;
         
-        // MODIFICADO: Solo genera celdas para Padrón, Nombre y Dirección
         HTMLFilas += `<tr>
             <td><strong>${padronVal}</strong></td>
             <td>${nombre}</td>
             <td>${domicilio}</td>
+            <td style="text-align:center;">Lote Seleccionado</td>
+            <td style="text-align:right; font-weight:bold;">TGI: ${deuTgi > 0 ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(deuTgi) : "$ 0,00"}</td>
         </tr>`;
     });
-
-    // MODIFICADO: Ajusta los encabezados de la tabla a solo Contribuyente, Nombre y Dirección
-    const elEncabezadoTabla = document.getElementById('modalTablaEncabezado');
-    if (elEncabezadoTabla) {
-        elEncabezadoTabla.innerHTML = `
-            <tr style="background: #f8f9fa;">
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Contribuyente (Padrón)</th>
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nombre</th>
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Dirección</th>
-            </tr>
-        `;
-    }
 
     const elTitulo = document.getElementById('modalTituloObra');
     if (elTitulo) elTitulo.innerHTML = `🖨️ Reporte Consolidado de Lotes Seleccionados`;
 
+    // SE AGREGA LOGO Y ESTRUCTURA AL ENCABEZADO
     const elEncabezado = document.getElementById('modalEncabezadoImpresion');
-    if (elEncabezado) elEncabezado.innerHTML = `<h2>Reporte Territorial de Lotes Agrupados</h2><p>Municipalidad de Rufino — Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}</p>`;
+    if (elEncabezado) {
+        elEncabezado.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px;">
+                <div>
+                    <h2 style="margin:0; color:#2c3e50;">Reporte Territorial de Lotes Agrupados</h2>
+                    <p style="margin:5px 0 0 0; color:#7f8c8d;">Municipalidad de Rufino — Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}</p>
+                </div>
+                <img src="logo.png" alt="Muni Rufino" class="logo-municipio" style="height:55px; object-fit:contain; transform:none;">
+            </div>
+        `;
+    }
 
     const elCuerpoTabla = document.getElementById('modalTablaCuerpo');
     if (elCuerpoTabla) elCuerpoTabla.innerHTML = HTMLFilas;
@@ -492,6 +490,7 @@ function abrirModalImpresionMultiple() {
     if (elTotalCaja) {
         elTotalCaja.innerHTML = `
             <strong>Resumen Acumulado de Selección:</strong><br>
+            • Cantidad de lotes procesados: ${lotesSeleccionados.length}<br>
             • Total Deuda TGI Sincronizada: ${formatoContador.format(totalDeudaTgi)}<br>
             • Total Deuda Obra Pública: ${formatoContador.format(totalDeudaObra)}
         `;
@@ -500,7 +499,6 @@ function abrirModalImpresionMultiple() {
     const elModalPrev = document.getElementById('modalPrevisualizacion');
     if (elModalPrev) elModalPrev.style.display = 'flex';
 
-    // RENDERIZADO DEL MAPA CLONADO DE IMPRESIÓN (ZOOM CERCANO AJUSTADO)
     setTimeout(() => {
         if (mapaImpresionClonado) {
             mapaImpresionClonado.remove();
@@ -518,7 +516,6 @@ function abrirModalImpresionMultiple() {
         
         capaBaseClon.addTo(mapaImpresionClonado);
 
-        // Capa general urbana de fondo
         if (datosTgi) {
             L.geoJSON(datosTgi, {
                 style: { color: "#bdc3c7", fillColor: "transparent", weight: 0.8, opacity: 0.4 }
@@ -534,37 +531,32 @@ function abrirModalImpresionMultiple() {
                 const padron = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente");
                 if (padron) {
                     l.bindTooltip(String(padron), {
-                        permanent: true, direction: 'center', className: 'etiqueta-contribuyente-centro-impresion'
+                        permanent: true, direction: 'center', className: 'etiqueta-tgi-lote'
                     });
                 }
             }
         }).addTo(mapaImpresionClonado);
 
         if (featuresSeleccionadas.length > 0) {
-            mapaImpresionClonado.fitBounds(capaAgrupadaReporte.getBounds(), { padding: [35, 35] });
+            // SE CAMBIÓ EL PADDING A [0, 0] PARA EXPANDIR AL MÁXIMO EL ZOOM DEL MAPA CLONADO
+            mapaImpresionClonado.fitBounds(capaAgrupadaReporte.getBounds(), { padding: [0, 0] });
         }
-    }, 250);
+        
+        mapaImpresionClonado.invalidateSize();
+    }, 300);
 }
 
 function abrirModalObra() {
     let HTMLFilasObra = "";
     let sumaTotal = 0;
 
-    const divMapa = document.getElementById('mapaClonadoImpresion');
-    if (divMapa) divMapa.remove();
-
-    // MODIFICADO: Asegura el re-establecimiento de las cabeceras estándar para cuando se imprime Obras
-    const elEncabezadoTabla = document.getElementById('modalTablaEncabezado');
-    if (elEncabezadoTabla) {
-        elEncabezadoTabla.innerHTML = `
-            <tr style="background: #f8f9fa;">
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nro. Padrón</th>
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Titular</th>
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Domicilio</th>
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Info Cuotas</th>
-                <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Deuda TGI / Obra</th>
-            </tr>
-        `;
+    let contenedorModal = document.getElementById('modalImprimible');
+    let divMapa = document.getElementById('mapaClonadoImpresion');
+    
+    if (contenedorModal && !divMapa) {
+        divMapa = document.createElement('div');
+        divMapa.id = 'mapaClonadoImpresion';
+        contenedorModal.insertBefore(divMapa, contenedorModal.firstChild);
     }
 
     lotesObraActual.forEach(f => {
@@ -588,6 +580,19 @@ function abrirModalObra() {
     const elTitulo = document.getElementById('modalTituloObra');
     if (elTitulo) elTitulo.innerHTML = `🚧 Informe: <strong>${nombreObraActual}</strong>`;
     
+    const elEncabezado = document.getElementById('modalEncabezadoImpresion');
+    if (elEncabezado) {
+        elEncabezado.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px;">
+                <div>
+                    <h2 style="margin:0; color:#2c3e50;">Informe de Afectación por Obra Pública</h2>
+                    <p style="margin:5px 0 0 0; color:#7f8c8d;">Municipalidad de Rufino — Obra: <strong>${nombreObraActual}</strong></p>
+                </div>
+                <img src="logo.png" alt="Muni Rufino" class="logo-municipio" style="height:55px; object-fit:contain; transform:none;">
+            </div>
+        `;
+    }
+    
     const elCuerpoTabla = document.getElementById('modalTablaCuerpo');
     if (elCuerpoTabla) elCuerpoTabla.innerHTML = HTMLFilasObra;
     
@@ -596,6 +601,43 @@ function abrirModalObra() {
     
     const elModalPrev = document.getElementById('modalPrevisualizacion');
     if (elModalPrev) elModalPrev.style.display = 'flex';
+
+    setTimeout(() => {
+        if (mapaImpresionClonado) {
+            mapaImpresionClonado.remove();
+        }
+        
+        if (!document.getElementById('mapaClonadoImpresion')) return;
+
+        mapaImpresionClonado = L.map('mapaClonadoImpresion', {
+            zoomControl: false, attributionControl: false
+        });
+
+        const capaBaseClon = map.hasLayer(capaSatelital) 
+            ? L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}') 
+            : L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
+        
+        capaBaseClon.addTo(mapaImpresionClonado);
+
+        const capaAgrupadaObra = L.geoJSON({type: "FeatureCollection", features: lotesObraActual}, {
+            style: estiloLote,
+            onEachFeature: (f, l) => {
+                const padron = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente");
+                if (padron) {
+                    l.bindTooltip(String(padron), {
+                        permanent: true, direction: 'center', className: 'etiqueta-tgi-lote'
+                    });
+                }
+            }
+        }).addTo(mapaImpresionClonado);
+
+        if (lotesObraActual.length > 0) {
+            // SE CAMBIÓ EL PADDING A [0, 0] PARA EXPANDIR AL MÁXIMO EL ZOOM DEL MAPA CLONADO DE OBRA
+            mapaImpresionClonado.fitBounds(capaAgrupadaObra.getBounds(), { padding: [0, 0] });
+        }
+        
+        mapaImpresionClonado.invalidateSize();
+    }, 300);
 }
 
 function limpiarMedidasLote() {
@@ -604,6 +646,7 @@ function limpiarMedidasLote() {
 }
 
 function filtrarTodo(e) {
+    if (!datosTgi) return; 
     const esMovil = window.innerWidth <= 768;
     
     if (e && e.target) {
@@ -675,6 +718,7 @@ if (document.getElementById('inputApellidoMovil')) document.getElementById('inpu
 if (document.getElementById('inputCalleMovil')) document.getElementById('inputCalleMovil').oninput = filtrarTodo;
 
 window.seleccionarCalle = function(nombreCalleLimpia) {
+    if (!datosTgi) return;
     limpiarMedidasLote();
     ocultarContenedorGraficoGeneral();
     
@@ -709,17 +753,12 @@ function ocultarContenedorGraficoGeneral() {
     if (miGraficoG) { miGraficoG.destroy(); miGraficoG = null; }
 }
 
-// MODIFICADO: Alterna la visibilidad del contenedor flotante sobre el mapa
 window.solicitarGraficoGeneral = function() {
     const contenedor = document.getElementById('contenedorGraficoGeneral');
-    if (contenedor) {
-        if (contenedor.style.display === "block") {
-            ocultarContenedorGraficoGeneral();
-        } else {
-            contenedor.style.display = "block";
-            actualizarGraficoGeneral(listadoLotesFiltroActual);
-        }
-    }
+    const panelL = document.getElementById('panelLateral');
+    if(panelL) panelL.classList.add('abierto');
+    if (contenedor) contenedor.style.display = "block";
+    actualizarGraficoGeneral(listadoLotesFiltroActual);
 };
 
 function actualizarGraficoGeneral(features) {
@@ -778,6 +817,7 @@ function actualizarGraficoGeneral(features) {
 }
 
 window.seleccionarLotePorPadron = function(padronVal) {
+    if (!datosTgi) return;
     const lote = datosTgi.features.find(f => {
         const idP = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente");
         return String(idP) === String(padronVal);
