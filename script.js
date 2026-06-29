@@ -18,13 +18,14 @@ const map = L.map('map', {
     layers: [capaCalles] 
 });
 
-// Variables Globales
+// Variables Globales Corregidas
 let datosTgi, capaTgi, miGraficoG, miGraficoC, miGraficoO;
 let lotesObraActual = []; 
 let nombreObraActual = ""; 
 let lineasLadosActuales = [];
 let mostrarBaldiosExclusivos = false; 
 let listadoLotesFiltroActual = [];
+let loteSeleccionadoActual = null; // <-- DECLARADA CORRECTAMENTE AQUÍ PARA EVITAR REFERENCE_ERROR
 
 // INTERRUPTOR DEL MENÚ HAMBURGUESA LATERAL
 window.togglePanelLateral = function() {
@@ -141,70 +142,81 @@ function dibujarMapa(features) {
         onEachFeature: (f, l) => {
             l.on('click', (e) => { 
                 L.DomEvent.stopPropagation(e); 
+                
+                // 1. Abrir de inmediato la ficha con los datos del lote
                 mostrarFicha(f.properties); 
 
+                // 2. Hacer foco visual en el lote
                 const margenMapa = window.innerWidth <= 768 ? [15, 120] : [50, 50];
                 map.fitBounds(l.getBounds(), { maxZoom: 20, paddingBottomRight: margenMapa, paddingTopLeft: [20, 20], animate: true });
+                
+                // 3. Limpiar las líneas y selecciones anteriores
                 limpiarMedidasLote();
+                loteSeleccionadoActual = l;
 
-                if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
-                    const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
+                // 4. Bloque de protección: Si las medidas fallan en perímetros raros, la ficha NO se congela
+                try {
+                    if (f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
+                        const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
 
-                    if (coords && coords.length >= 3) {
-                        const centroLote = l.getBounds().getCenter();
-                        let puntosLimpios = [];
+                        if (coords && coords.length >= 3) {
+                            const centroLote = l.getBounds().getCenter();
+                            let puntosLimpios = [];
 
-                        for (let i = 0; i < coords.length; i++) {
-                            let p = L.latLng(coords[i][1], coords[i][0]);
-                            if (puntosLimpios.length === 0 || puntosLimpios[puntosLimpios.length - 1].distanceTo(p) > 0.2) {
-                                puntosLimpios.push(p);
+                            for (let i = 0; i < coords.length; i++) {
+                                let p = L.latLng(coords[i][1], coords[i][0]);
+                                if (puntosLimpios.length === 0 || puntosLimpios[puntosLimpios.length - 1].distanceTo(p) > 0.2) {
+                                    puntosLimpios.push(p);
+                                }
                             }
-                        }
-                        if (puntosLimpios[0].distanceTo(puntosLimpios[puntosLimpios.length - 1]) > 0.2) {
-                            puntosLimpios.push(puntosLimpios[0]);
-                        }
-
-                        let ladosConsolidados = [];
-                        let pInicio = puntosLimpios[0];
-
-                        for (let i = 0; i < puntosLimpios.length - 1; i++) {
-                            let pActual = puntosLimpios[i];
-                            let pSiguiente = puntosLimpios[i + 1];
-                            let pFuturo = puntosLimpios[i + 2] || puntosLimpios[1];
-
-                            let azimut1 = Math.atan2(pSiguiente.lng - pActual.lng, pSiguiente.lat - pActual.lat);
-                            let azimut2 = Math.atan2(pFuturo.lng - pSiguiente.lng, pFuturo.lat - pSiguiente.lat);
-
-                            let diferenciaAngulo = Math.abs(azimut1 - azimut2);
-                            if (diferenciaAngulo > Math.PI) diferenciaAngulo = (Math.PI * 2) - diferenciaAngulo;
-
-                            if (diferenciaAngulo >= 0.1) {
-                                ladosConsolidados.push({ desde: pInicio, hasta: pSiguiente });
-                                pInicio = pSiguiente; 
+                            if (puntosLimpios[0].distanceTo(puntosLimpios[puntosLimpios.length - 1]) > 0.2) {
+                                puntosLimpios.push(puntosLimpios[0]);
                             }
+
+                            let ladosConsolidados = [];
+                            let pInicio = puntosLimpios[0];
+
+                            for (let i = 0; i < puntosLimpios.length - 1; i++) {
+                                let pActual = puntosLimpios[i];
+                                let pSiguiente = puntosLimpios[i + 1];
+                                let pFuturo = puntosLimpios[i + 2] || puntosLimpios[1];
+
+                                let azimut1 = Math.atan2(pSiguiente.lng - pActual.lng, pSiguiente.lat - pActual.lat);
+                                let azimut2 = Math.atan2(pFuturo.lng - pSiguiente.lng, pFuturo.lat - pSiguiente.lat);
+
+                                let diferenciaAngulo = Math.abs(azimut1 - azimut2);
+                                if (diferenciaAngulo > Math.PI) diferenciaAngulo = (Math.PI * 2) - diferenciaAngulo;
+
+                                if (diferenciaAngulo >= 0.1) {
+                                    ladosConsolidados.push({ desde: pInicio, hasta: pSiguiente });
+                                    pInicio = pSiguiente; 
+                                }
+                            }
+                            if (pInicio !== puntosLimpios[puntosLimpios.length - 1]) {
+                                ladosConsolidados.push({ desde: pInicio, hasta: puntosLimpios[puntosLimpios.length - 1] });
+                            }
+
+                            ladosConsolidados.forEach(lado => {
+                                const distanciaTotalLado = lado.desde.distanceTo(lado.hasta);
+                                if (distanciaTotalLado < 1.0) return;
+
+                                const textoMetros = `${distanciaTotalLado.toFixed(1)} m`;
+                                const puntoMedioLado = L.latLng((lado.desde.lat + lado.hasta.lat) / 2, (lado.desde.lng + lado.hasta.lng) / 2);
+
+                                const factorDesplazamiento = 0.15;
+                                const posicionTooltipInterno = L.latLng(
+                                    puntoMedioLado.lat + (centroLote.lat - puntoMedioLado.lat) * factorDesplazamiento,
+                                    puntoMedioLado.lng + (centroLote.lng - puntoMedioLado.lng) * factorDesplazamiento
+                                );
+
+                                const dibujoLado = L.polyline([lado.desde, lado.hasta], { color: '#2c3e50', weight: 3, opacity: 0.85 }).addTo(map);
+                                dibujoLado.bindTooltip(textoMetros, { permanent: true, direction: 'center', className: 'tooltip-borde-lineal-perimetro' }).openTooltip(posicionTooltipInterno);
+                                lineasLadosActuales.push(dibujoLado);
+                            });
                         }
-                        if (pInicio !== puntosLimpios[puntosLimpios.length - 1]) {
-                            ladosConsolidados.push({ desde: pInicio, hasta: puntosLimpios[puntosLimpios.length - 1] });
-                        }
-
-                        ladosConsolidados.forEach(lado => {
-                            const distanciaTotalLado = lado.desde.distanceTo(lado.hasta);
-                            if (distanciaTotalLado < 1.0) return;
-
-                            const textoMetros = `${distanciaTotalLado.toFixed(1)} m`;
-                            const puntoMedioLado = L.latLng((lado.desde.lat + lado.hasta.lat) / 2, (lado.desde.lng + lado.hasta.lng) / 2);
-
-                            const factorDesplazamiento = 0.15;
-                            const posicionTooltipInterno = L.latLng(
-                                puntoMedioLado.lat + (centroLote.lat - puntoMedioLado.lat) * factorDesplazamiento,
-                                puntoMedioLado.lng + (centroLote.lng - puntoMedioLado.lng) * factorDesplazamiento
-                            );
-
-                            const dibujoLado = L.polyline([lado.desde, lado.hasta], { color: '#2c3e50', weight: 3, opacity: 0.85 }).addTo(map);
-                            dibujoLado.bindTooltip(textoMetros, { permanent: true, direction: 'center', className: 'tooltip-borde-lineal-perimetro' }).openTooltip(posicionTooltipInterno);
-                            lineasLadosActuales.push(dibujoLado);
-                        });
                     }
+                } catch (err) {
+                    console.warn("Aviso: No se pudieron trazar los metros de este lote.", err);
                 }
             });
         }
@@ -220,7 +232,6 @@ function calcularTotalBaldios() {
     document.getElementById('numBaldios').innerText = contador;
 }
 
-// RESTAURADO: Se asocian correctamente los eventos de Satelital y Baldíos
 function vincularBotonesBarra() {
     const btnB = document.getElementById('btnToggleBaldios');
     const panelTotalizador = document.getElementById('totalizadorBaldios');
@@ -259,9 +270,12 @@ function vincularBotonesBarra() {
 function limpiarMedidasLote() {
     lineasLadosActuales.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
     lineasLadosActuales = [];
+    if (loteSeleccionadoActual) {
+        loteSeleccionadoActual.unbindTooltip();
+        loteSeleccionadoActual = null;
+    }
 }
 
-// FILTRADO UNIFICADO (Celulares y PC alineados)
 function filtrarTodo(e) {
     const esMovil = window.innerWidth <= 768;
     
@@ -682,4 +696,5 @@ document.getElementById('btnImprimirObra').onclick = function() {
     document.getElementById('modalPrevisualizacion').style.display = 'flex';
 };
 
+// Se ejecuta la carga inicial
 cargarDatos();

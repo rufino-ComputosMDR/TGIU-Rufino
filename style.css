@@ -1,3 +1,7 @@
+/* ==========================================================================
+   1. ESTILOS ORIGINALES: TOOLTIPS PERIMETRALES PARA MEDIDAS DE LADOS
+   ========================================================================== */
+
 /* Tooltips perimetrales para lectura interna en el lote */
 .tooltip-borde-lineal-perimetro {
     background: #2c3e50 !important; /* Color oscuro profesional */
@@ -16,4 +20,91 @@
 /* Ocultar la flecha por defecto de Leaflet */
 .tooltip-borde-lineal-perimetro::before {
     display: none !important;
+}
+
+
+/* ==========================================================================
+   2. NUEVOS ESTILOS: IMPRESIÓN HORIZONTAL MAXIMIZADA (MÁXIMA EXPRESIÓN)
+   ========================================================================== */
+
+/* Forzar orientación horizontal de la hoja y aprovechamiento máximo absoluto del papel */
+@media print {
+    @page {
+        size: landscape;
+        margin: 0cm !important; /* Eliminamos los márgenes físicos para la máxima expresión */
+    }
+    
+    body, html {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* Forzamos al contenedor del mapa espejo a ocupar todo el papel físico */
+    #contenedorImpresionMapa, #mapaEspejoImpresion {
+        width: 100vw !important;
+        height: 100vh !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Escalado de las imágenes y capas internas para estirarse al límite de la hoja */
+    #contenedorImpresionMapa img, #mapaEspejoImpresion img, .leaflet-tile-container img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important; /* Cubre toda la hoja horizontal sin dejar bordes blancos vacíos */
+    }
+    
+    /* Ocultar cualquier otro componente (tablas, textos, barras) para que salga SOLO el mapa gigante */
+    .hoja-datos-impresion, #contenedorImpresionLotes, header, footer, .seccion-datos-impresion {
+        display: none !important;
+    }
+}
+
+
+/* ==========================================================================
+   3. CONTROL DE TGI INTERNO (CONFINADO ADENTRO DEL LOTE Y DINÁMICO)
+   ========================================================================== */
+
+/* Tooltip para el número de TGI: Diseñado para confinarse estrictamente dentro del lote */
+.tooltip-tgi-seleccionado {
+    background: rgba(155, 89, 182, 0.95) !important; /* Morado traslúcido legible */
+    border: 1px solid #8e44ad !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+    pointer-events: none !important; /* Permite clics a través del cartel */
+    
+    /* Contención estricta para evitar desbordes (ej. Contribuyente 0020270U) */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+    
+    /* Adaptación fluida según el nivel de Zoom de la pantalla */
+    font-size: 0.75vw !important; /* Se escala proporcionalmente al viewport/mapa */
+    min-width: 30px !important;
+    max-width: 90% !important;   /* No supera nunca el ancho físico disponible del polígono */
+    overflow: hidden !important;  /* Recorta limpiamente cualquier exceso */
+    text-overflow: clip !important;
+}
+
+/* Quitar la flecha del tooltip para asegurar un centrado geométrico perfecto */
+.tooltip-tgi-seleccionado::before {
+    display: none !important;
+}
+
+/* Ocultar suavemente los cartelitos si se aleja demasiado el mapa para no colapsar la vista */
+.leaflet-zoom-anim .tooltip-tgi-seleccionado,
+.leaflet-zoom-hide .tooltip-tgi-seleccionado {
+    opacity: 0 !important;
 }
