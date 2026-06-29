@@ -2,33 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TGI - Municipalidad de Rufino</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f0f0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
-
-        /* ESTILO INTERNO DEL LOTE */
-        .etiqueta-tgi-lote {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            color: #2c3e50 !important;
-            font-weight: bold !important;
-            font-size: 11px !important;
-            text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
-            white-space: nowrap;
-            text-align: center;
-        }
-
-        /* ESTILO LOGO MUNICIPAL EN LA BARRA DE NAVEGACIÓN */
-        .logo-municipio {
-            height: 32px;
-            object-fit: contain;
-            margin: 0 5px;
-        }
 
         /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS */
         .barra-superior {
@@ -38,301 +17,257 @@
         }
         
         .btn-hamburguesa {
-            background: none; border: none; font-size: 24px; cursor: pointer; color: #2c3e50; padding: 5px;
+            background: none; border: none; font-size: 24px; cursor: pointer; color: #2c3e50;
+            padding: 5px 10px; border-radius: 6px; transition: background 0.2s; display: flex; align-items: center;
         }
+        .btn-hamburguesa:hover { background: #f0f2f5; }
 
-        .contenedor-busqueda { display: flex; align-items: center; gap: 8px; flex: 1; position: relative; }
-        .input-busqueda {
-            width: 100%; padding: 8px 12px; border: 1px solid #dcdde1; border-radius: 8px;
-            font-size: 14px; outline: none; transition: border 0.2s;
-        }
-        .input-busqueda:focus { border-color: #3498db; }
+        .contenedor-busquedas { display: flex; gap: 10px; flex: 1; position: relative; }
+        .wrapper-input { flex: 1; position: relative; }
 
-        .controles-rapidos { display: flex; gap: 8px; }
-        .btn-accion {
-            padding: 8px 14px; border: 1px solid #dcdde1; border-radius: 8px;
-            background: white; font-size: 13px; font-weight: 600; cursor: pointer; color: #2c3e50;
-            transition: all 0.2s; white-space: nowrap;
-        }
-        .btn-accion:hover { background: #f5f6fa; border-color: #b2bec3; }
-        .btn-accion.activo { background: #2ecc71; color: white; border-color: #27ae60; }
-
-        /* SUGERENCIAS DE BÚSQUEDA */
-        .contenedor-sugerencias {
-            position: absolute; top: 100%; left: 0; right: 0; background: white;
-            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            max-height: 250px; overflow-y: auto; z-index: 3000; margin-top: 5px; display: none;
-        }
-        .item-sugerencia { padding: 10px 15px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f2f6; }
-        .item-sugerencia:hover { background: #f1f2f6; }
-        .item-sugerencia strong { color: #2c3e50; }
-
-        /* PANEL LATERAL FLOTANTE */
+        /* MENÚ LATERAL HAMBURGUESA */
         .panel-lateral {
-            position: absolute; top: 75px; left: 10px; bottom: 10px; width: 320px; z-index: 2000;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; flex-direction: column;
-            transform: translateX(-350px); transition: transform 0.3s ease; overflow: hidden;
+            position: absolute; top: 0; left: -320px; bottom: 0; width: 280px; z-index: 2500;
+            background: white; padding: 20px; box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+            transition: left 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+            display: flex; flex-direction: column; gap: 15px; max-height: 100vh; overflow-y: auto;
         }
-        .panel-lateral.abierto { transform: translateX(0); }
-        .cabecera-panel { padding: 15px; background: #2c3e50; color: white; font-weight: bold; font-size: 15px; }
-        .contenido-panel { padding: 15px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .panel-lateral.abierto { left: 0; }
 
-        .grupo-filtro { display: flex; flex-direction: column; gap: 5px; }
-        .grupo-filtro label { font-size: 11px; font-weight: bold; color: #7f8c8d; text-transform: uppercase; }
-        .select-filtro { padding: 8px; border-radius: 6px; border: 1px solid #dcdde1; font-size: 13px; outline: none; }
+        .header-panel-lateral { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .btn-cerrar-panel { background: none; border: none; font-size: 20px; cursor: pointer; color: #7f8c8d; }
 
-        /* PANELES DE ESTADÍSTICAS */
-        .panel-info-est { background: white; border-radius: 8px; border: 1px solid #e1e8ed; padding: 12px; }
-        .caja-grafico-mini { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-        .mini-canvas-wrapper { width: 70px; height: 70px; flex-shrink: 0; }
-        .stats-texto { flex: 1; }
-
-        .barra-progreso { background: #f1f2f6; border-radius: 4px; height: 6px; margin: 4px 0 8px 0; overflow: hidden; }
-        .progreso-llenado { height: 100%; transition: width 0.4s ease; }
-        .etiqueta-porcentaje { font-size: 9px; font-weight: bold; color: #7f8c8d; display: block; }
-
-        /* FICHA INDIVIDUAL FLOTANTE */
-        .panel-ficha {
-            position: absolute; top: 75px; right: 10px; bottom: 10px; width: 330px; z-index: 2000;
-            background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            display: none; flex-direction: column; overflow: hidden;
+        /* FICHA TÉCNICA INDEPENDIENTE Y FLOTANTE */
+        .ficha-flotante-lote {
+            position: absolute; top: 75px; left: 10px; z-index: 2000;
+            background: white; width: 290px; max-height: 75vh; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: none; flex-direction: column;
+            box-sizing: border-box; overflow: hidden;
         }
-        .cabecera-ficha { background: #34495e; color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
-        .cabecera-ficha h3 { margin: 0; font-size: 14px; letter-spacing: 0.5px; }
-        .btn-cerrar-ficha { background: none; border: none; color: white; font-size: 18px; cursor: pointer; }
-        .cuerpo-ficha { padding: 15px; flex: 1; overflow-y: auto; font-size: 13px; }
-        .cuerpo-ficha p { margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px dashed #f1f2f6; padding-bottom: 4px; }
-        .cuerpo-ficha .etiqueta { color: #7f8c8d; font-weight: 500; }
-        .cuerpo-ficha .valor { font-weight: 600; color: #2c3e50; text-align: right; }
+        .header-ficha-flotante { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 2px solid #3498db; background: #fff; }
+        .cuerpo-ficha-flotante { padding: 15px; overflow-y: auto; font-size: 11px; box-sizing: border-box; flex: 1; }
+        .btn-cerrar-ficha { background: #e74c3c; color: white; border: none; width: 22px; height: 22px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+
+        /* PANEL DERECHO */
+        .panel-derecho {
+            position: absolute; top: 75px; right: 10px; z-index: 1000;
+            background: white; width: 280px; max-width: 280px; min-width: 280px; border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: all 0.3s ease; box-sizing: border-box;
+        }
+        .header-panel { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 2px solid #3498db; }
+        .btn-toggle { background: none; border: none; font-size: 18px; cursor: pointer; color: #3498db; }
+        .cuerpo-panel { padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+
+        .btn-accion-analisis {
+            width: 100%; padding: 10px; background: #3498db; color: white; border: none;
+            border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;
+            transition: background 0.2s; text-transform: uppercase;
+        }
+        .btn-accion-analisis:hover { background: #2980b9; }
+
+        h2 { font-size: 12px; margin: 0; color: #2c3e50; text-transform: uppercase; }
+        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
+        select { background-color: white; color: #2c3e50; cursor: pointer; }
+
+        #listaSugerencias, #listaSugerenciasCalle { 
+            position: absolute; top: 100%; left: 0; width: 100%; background: white; 
+            border: 1px solid #ddd; border-radius: 0 0 6px 6px; max-height: 220px; 
+            overflow-y: auto; display: none; z-index: 3000; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .item-sugerencia { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 11px; }
+        .item-sugerencia:hover { background: #f8f9fa; color: #3498db; }
+
+        /* Paneles dinámicos internos */
+        #panelEstadisticaCalle { display: none; background: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 5px solid #00fbff; }
+        #panelEstadisticaObra { display: none; background: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 5px solid #e67e22; position: relative; }
+
+        .etiqueta-porcentaje { font-size: 10px; font-weight: bold; color: #7f8c8d; margin-top: 8px; display: block; }
+        .barra-progreso { background: #ddd; border-radius: 4px; height: 8px; width: 100%; margin-top: 2px; overflow: hidden; }
+        .progreso-llenado { height: 100%; transition: width 0.5s ease; }
         
-        .vencer { color: #f1c40f; font-weight: bold; }
+        .lote-calle-resaltada { stroke: #00fbff !important; stroke-width: 2px !important; stroke-opacity: 1 !important; fill-opacity: 0.4 !important; z-index: 1000 !important; }
+        
+        @keyframes parpadear { 0% { fill-opacity: 0.2; } 50% { fill-opacity: 1; } 100% { fill-opacity: 0.2; } }
+        .lote-parpadeando { animation: parpadear 0.5s ease-in-out 5 !important; stroke: #ff00ff !important; stroke-width: 4px !important; z-index: 1500 !important; }
+        
+        .etiqueta { font-weight: bold; color: #7f8c8d; }
+        .valor { color: #2c3e50; margin-left: 5px; }
         .deuda { color: #e74c3c; font-weight: bold; }
+        .vencer { color: #f1c40f; font-weight: bold; }
 
-        .totalizador-baldios {
+        /* BOTONES DE LA BARRA SUPERIOR */
+        .btn-filtro-baldios, .btn-filtro-satelite {
+            padding: 10px 15px; border: 1px solid #ccc; background: #fff;
+            color: #333; border-radius: 6px; cursor: pointer; font-weight: bold;
+            font-size: 12px; transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-filtro-baldios.activo { background: #2ecc71; color: white; border-color: #27ae60; }
+        .btn-filtro-satelite.activo { background: #34495e; color: white; border-color: #2c3e50; }
+
+        /* TOTALIZADOR CENTRADO ABAJO */
+        .totalizador-baldios-flotante {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000;
-            background: #2ecc71; color: white; padding: 8px 20px; border-radius: 20px;
-            font-weight: bold; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display: none;
+            display: none; background: white; border: 2px solid #2ecc71;
+            padding: 12px 18px; border-radius: 10px; font-size: 13px; color: #27ae60; 
+            font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.15); white-space: nowrap;
         }
 
-        /* MODAL DE PREVISUALIZACIÓN */
-        .modal-previsualizacion {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 4000;
-            background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center;
+        #btnImprimirObra {
+            width: 100%; margin-top: 15px; padding: 10px; background: #d35400; color: white; 
+            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+            display: none; transition: background 0.3s;
         }
-        .modal-contenido {
-            background: white; width: 85%; max-width: 900px; height: 85%;
-            border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        .modal-barra { background: #2c3e50; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .modal-barra button { background: #e74c3c; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        
-        .link-padron-modal { color: #3498db; text-decoration: underline; cursor: pointer; font-weight: bold; }
-        .lote-parpadeando { animation: parpadeo 0.5s alternate infinite; }
-        @keyframes parpadeo { from { fill-opacity: 0.3; } to { fill-opacity: 0.9; } }
-        
-        .tooltip-borde-lineal-perimetro {
-            background: rgba(44, 62, 80, 0.9); border: 1px solid #34495e;
-            color: white; font-weight: bold; font-size: 10px; padding: 2px 5px; border-radius: 4px;
-        }
+        #btnImprimirObra:hover { background: #e67e22; }
+        .link-padron-modal { color: #3498db; text-decoration: underline; font-weight: bold; cursor: pointer; }
 
-        #mapaClonadoImpresion {
-            width: 100%; height: 500px; background: #f8f9fa; border: 1px solid #ccc;
-            margin: 15px 0; border-radius: 8px; position: relative;
-        }
-
-        .seccion-pagina-mapa { display: block; width: 100%; }
-        .seccion-pagina-datos { display: block; width: 100%; margin-top: 20px; }
-
-        /* REPOSITORIO DE CONTROL MÓVIL */
-        .barra-superior-movil { display: none; }
-        @media (max-width: 768px) {
-            .barra-superior { display: none; }
-            .barra-superior-movil {
-                position: absolute; top: 0; left: 0; right: 0; z-index: 2000;
-                background: white; padding: 8px; display: flex; flex-direction: column; gap: 6px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            .fila-movil-top { display: flex; align-items: center; gap: 8px; }
-            .panel-lateral { top: 95px; width: calc(100% - 20px); left: 10px; bottom: 10px; }
-            .panel-ficha { top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 50%; border-radius: 12px 12px 0 0; }
-        }
-
-        /* REGLAS EXCLUSIVAS DE IMPRESIÓN IMPERIOSA DE GRAN TAMAÑO */
         @media print {
-            body * { visibility: hidden; }
-            #modalPrevisualizacion, #modalPrevisualizacion * { visibility: visible; }
-            #modalPrevisualizacion { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white !important; overflow: visible; }
+            #modalPrevisualizacion { position: absolute !important; top: 0 !important; left: 0 !important; background: white !important; z-index: 9999 !important; display: flex !important; height: auto !important; overflow: visible !important; }
+            #modalPrevisualizacion > div { box-shadow: none !important; width: 100% !important; height: auto !important; overflow: visible !important; border-radius: 0 !important; }
             .no-print { display: none !important; }
-            #modalImprimible { overflow: visible !important; height: auto !important; padding: 0 !important; width: 100% !important; }
+        }
+
+        /* DISEÑO EXCLUSIVO CELULARES Y DISPOSITIVOS MÓVILES */
+        @media (max-width: 768px) {
+            .barra-superior { padding: 8px 12px !important; border-radius: 8px !important; gap: 6px !important; }
             
-            .logo-municipio-reporte {
-                height: 55px !important;
-                width: auto !important;
-                display: block !important;
-                object-fit: contain !important;
-            }
-
-            /* HOJA 1 OPTIMIZADA AL MÁXIMO AMPLIADO */
-            .seccion-pagina-mapa {
-                page-break-after: always !important;
-                break-after: page !important;
-                display: block !important;
-                width: 100% !important;
-                height: 94vh !important; /* Ocupa casi todo el alto de la hoja física */
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            #mapaClonadoImpresion {
-                display: block !important;
-                height: 88% !important; /* Maximiza la ventana del mapa dentro de la primera hoja */
-                width: 100% !important;
-                margin: 10px 0 0 0 !important;
-                border: 2px solid #2c3e50 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-
-            /* HOJA 2 */
-            .seccion-pagina-datos {
-                display: block !important;
-                page-break-before: always !important;
-                break-before: page !important;
-                width: 100% !important;
-                margin-top: 0 !important;
-                padding-top: 10px !important;
-            }
+            /* Ocultamos las búsquedas de la barra superior en celular */
+            .barra-superior .contenedor-busquedas { display: none !important; }
             
-            table { width: 100% !important; margin-top: 20px; border-collapse: collapse; }
-            th, td { padding: 10px 12px !important; border: 1px solid #000 !important; font-size: 13px !important; }
-            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            /* Hacemos visibles las búsquedas dentro de la hamburguesa lateral */
+            .panel-lateral .contenedor-busquedas { display: flex !important; flex-direction: column !important; margin-bottom: 10px !important; }
+            
+            .btn-filtro-baldios, .btn-filtro-satelite { font-size: 11px !important; padding: 8px 10px !important; flex: 1; text-align: center; }
+            .panel-lateral { width: 85% !important; max-width: 320px !important; left: -360px !important; }
+            .panel-lateral.abierto { left: 0 !important; }
+            
+            .ficha-flotante-lote { top: auto !important; bottom: 15px !important; left: 10px !important; right: 10px !important; width: auto !important; max-height: 42vh !important; }
+            .panel-derecho { top: auto !important; bottom: 75px !important; right: 10px !important; left: 10px !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
+            .totalizador-baldios-flotante { bottom: 12px !important; font-size: 11px !important; padding: 6px 12px !important; }
         }
     </style>
 </head>
 <body>
 
-    <div class="barra-superior">
-        <button class="btn-hamburguesa" onclick="togglePanelLateral()">☰</button>
-        <img src="logo.png" alt="Logo Municipio" class="logo-municipio">
+    <div class="barra-superior no-print">
+        <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰</button>
         
-        <div class="contenedor-busqueda">
-            <input type="text" id="inputApellido" class="input-busqueda" placeholder="Buscar por Apellido o Padrón...">
-            <div id="listaSugerencias" class="contenedor-sugerencias"></div>
-        </div>
-        
-        <div class="contenedor-busqueda">
-            <input type="text" id="inputCalle" class="input-busqueda" placeholder="Buscar por Calle/Domicilio...">
-            <div id="listaSugerenciasCalle" class="contenedor-sugerencias"></div>
+        <div class="contenedor-busquedas">
+            <div class="wrapper-input">
+                <input type="text" id="inputApellido" placeholder="🔎 Buscar por Apellido o Nro. Padrón..." autocomplete="off">
+                <div id="listaSugerencias"></div>
+            </div>
+            <div class="wrapper-input">
+                <input type="text" id="inputCalle" placeholder="🛣️ Buscar por Nombre de Calle..." autocomplete="off">
+                <div id="listaSugerenciasCalle"></div>
+            </div>
         </div>
 
-        <div class="controles-rapidos">
-            <button id="btnToggleBaldios" class="btn-accion">⬜ Baldíos: OFF</button>
-            <button id="btnToggleSatelite" class="btn-accion">Satélite</button>
-            <button id="btnModoSeleccion" class="btn-accion" style="border-color: #9b59b6; color: #8e44ad;">Selección Múltiple: OFF</button>
-            <button id="btnImprimirSeleccionados" class="btn-accion" style="display: none; background: #9b59b6; color: white; border: none;">🖨️ Imprimir Selección</button>
+        <button id="btnToggleSatelite" class="btn-filtro-satelite">🛰️ Satelital: APAGADO</button>
+        <button id="btnToggleBaldios" class="btn-filtro-baldios">⬜ Resaltar Baldíos: APAGADO</button>
+    </div>
+
+    <div class="panel-lateral no-print" id="panelLateral">
+        <div class="header-panel-lateral">
+            <h2>Filtros y Capas</h2>
+            <button class="btn-cerrar-panel" onclick="togglePanelLateral()">✕</button>
+        </div>
+
+        <div class="contenedor-busquedas" style="display: none;">
+            <div class="wrapper-input" style="margin-bottom: 8px;">
+                <input type="text" id="inputApellidoMovil" placeholder="🔎 Buscar por Apellido o Padrón..." autocomplete="off">
+                <div id="listaSugerenciasMovil" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; display: none; z-index: 3100;"></div>
+            </div>
+            <div class="wrapper-input">
+                <input type="text" id="inputCalleMovil" placeholder="🛣️ Buscar por Calle..." autocomplete="off">
+                <div id="listaSugerenciasCalleMovil" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; display: none; z-index: 3100;"></div>
+            </div>
+        </div>
+
+        <select id="selectSeccion">
+            <option value="">🧱 Seleccionar Sección...</option>
+        </select>
+
+        <select id="selectObra" style="border-color: #e67e22;">
+            <option value="">🚧 Seleccionar Obra...</option>
+        </select>
+
+        <div id="panelEstadisticaCalle">
+            <h2 style="font-size: 11px; color: #16a085;">ANÁLISIS DE CALLE</h2>
+            <div id="statsCalleContenido"></div>
+            <div style="height: 120px; margin-top: 10px;">
+                <canvas id="graficoCalle"></canvas>
+            </div>
+        </div>
+
+        <div id="panelEstadisticaObra">
+            <h2 style="font-size: 11px; color: #d35400;">INFORME DE OBRA PÚBLICA</h2>
+            <div id="statsObraContenido"></div>
+            <div style="height: 120px; margin-top: 10px;">
+                <canvas id="graficoObra"></canvas>
+            </div>
+            <button id="btnImprimirObra">📄 Previsualizar Listado</button>
         </div>
     </div>
 
-    <div class="barra-superior-movil">
-        <div class="fila-movil-top">
-            <button class="btn-hamburguesa" onclick="togglePanelLateral()">☰</button>
-            <img src="logo.png" alt="Logo Municipio" class="logo-municipio">
-            <input type="text" id="inputApellidoMovil" class="input-busqueda" placeholder="Apellido o Padrón...">
-            <button id="btnToggleSateliteMovil" class="btn-accion" onclick="document.getElementById('btnToggleSatelite').click()">🛰️</button>
+    <div class="ficha-flotante-lote no-print" id="panelFichaFlotante">
+        <div class="header-ficha-flotante">
+            <h2 style="color: #3498db; font-size: 12px;">Detalle del Lote</h2>
+            <button class="btn-cerrar-ficha" onclick="cerrarFicha()">✕</button>
         </div>
-        <div style="position:relative; width:100%;">
-            <div id="listaSugerenciasMovil" class="contenedor-sugerencias"></div>
-        </div>
-        <div class="fila-movil-top">
-            <input type="text" id="inputCalleMovil" class="input-busqueda" placeholder="Filtrar por Calle...">
-        </div>
-        <div style="position:relative; width:100%;">
-            <div id="listaSugerenciasCalleMovil" class="contenedor-sugerencias"></div>
-        </div>
+        <div class="cuerpo-ficha-flotante" id="cuerpoFichaContenido"></div>
     </div>
 
-    <div id="map"></div>
-
-    <div id="panelLateral" class="panel-lateral">
-        <div class="cabecera-panel">Filtros y Estadísticas</div>
-        <div class="contenido-panel">
-            <div class="grupo-filtro">
-                <label>Sección Territorial</label>
-                <select id="selectSeccion" class="select-filtro"><option value="">Cargando...</option></select>
-            </div>
-            <div class="grupo-filtro">
-                <label>Filtro por Obra Pública</label>
-                <select id="selectObra" class="select-filtro"><option value="">Cargando...</option></select>
-            </div>
-            <button class="btn-accion" style="background:#34495e; color:white; margin-top:5px;" onclick="solicitarGraficoGeneral()">📊 Ver Gráfico General de Filtro</button>
-            <div id="contenedorGraficoGeneral" class="panel-info-est" style="display: none; height: 180px;">
-                <label style="font-size:10px; font-weight:bold; color:#7f8c8d; display:block; margin-bottom:5px;">DISTRIBUCIÓN TGI ACTUAL</label>
-                <div style="width:100%; height:140px; position:relative;"><canvas id="graficoBarras"></canvas></div>
-            </div>
-            <div id="panelEstadisticaCalle" class="panel-info-est" style="display:none;">
-                <div class="caja-grafico-mini">
-                    <div class="mini-canvas-wrapper"><canvas id="graficoCalle"></canvas></div>
-                    <div id="statsCalleContenido" class="stats-texto"></div>
-                </div>
-            </div>
-            <div id="panelEstadisticaObra" class="panel-info-est" style="display:none;">
-                <div class="caja-grafico-mini">
-                    <div class="mini-canvas-wrapper"><canvas id="graficoObra"></canvas></div>
-                    <div id="statsObraContenido" class="stats-texto"></div>
-                </div>
-                <button id="btnImprimirObra" class="btn-accion" style="width:100%; margin-top:10px; background:#e67e22; color:white; display:none; border:none;">🖨️ Generar Informe de Obra</button>
+    <div class="panel-derecho no-print" id="panelD">
+        <div class="header-panel">
+            <h2>Estado TGI General</h2>
+            <button class="btn-toggle" onclick="togglePanelDerecho()" id="btnT">➖</button>
+        </div>
+        <div class="cuerpo-panel" id="cuerpoD">
+            <button class="btn-accion-analisis" onclick="solicitarGraficoGeneral()">📊 Generar Gráfico Estadístico</button>
+            <div id="contenedorGraficoGeneral" style="width: 100%; height: 140px; position: relative; display: none;">
+                <canvas id="graficoBarras"></canvas>
             </div>
         </div>
     </div>
 
-    <div id="panelFichaFlotante" class="panel-ficha">
-        <div class="cabecera-ficha">
-            <h3>Ficha de Información Territorial</h3>
-            <button class="btn-cerrar-ficha" onclick="cerrarFicha()">✖</button>
-        </div>
-        <div id="cuerpoFichaContenido" class="cuerpo-ficha"></div>
+    <div id="totalizadorBaldios" class="totalizador-baldios-flotante no-print">
+        🟢 Terrenos Baldíos Totales: <span id="numBaldios">0</span>
     </div>
 
-    <div id="totalizadorBaldios" class="totalizador-baldios">Total de Baldíos Registrados: <span id="numBaldios">0</span></div>
+    <div id="map" class="no-print"></div>
 
-    <div id="modalPrevisualizacion" class="modal-previsualizacion">
-        <div class="modal-contenido">
-            <div class="modal-barra no-print">
-                <span id="modalTituloObra" style="font-weight: bold;">Previsualización de Reporte</span>
-                <div style="display:flex; gap:10px;">
-                    <button onclick="window.print()" style="background:#2ecc71; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">Imprimir documento</button>
-                    <button onclick="cerrarModalObra()">Cerrar</button>
+    <div id="modalPrevisualizacion" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; width: 90%; max-width: 850px; height: 85vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 5px 25px rgba(0,0,0,0.3);">
+            <div style="padding: 15px 20px; background: #2c3e50; color: white; display: flex; justify-content: space-between; align-items: center;" class="no-print">
+                <h2 id="modalTituloObra" style="color: white; margin: 0; font-size: 13px;">Informe de Obra Pública</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="window.print()" style="padding: 7px 14px; background: #d35400; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">🖨️ Imprimir</button>
+                    <button onclick="cerrarModalObra()" style="padding: 7px 14px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 11px;">✕ Cerrar</button>
                 </div>
             </div>
-            <div id="modalImprimible" style="flex: 1; padding: 25px; overflow-y: auto; font-size: 12px;">
-                
-                <div class="seccion-pagina-mapa" id="seccionHojaMapa">
-                    <div id="modalEncabezadoImpresion"></div>
-                    <div id="mapaClonadoImpresion"></div>
-                </div>
-
-                <div class="seccion-pagina-datos" id="seccionHojaDatos">
-                    <div id="modalEncabezadoDatos"></div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 15px;">
+            <div style="flex: 1; padding: 25px; overflow-y: auto; font-size: 12px;">
+                <div id="modalEncabezadoImpresion" style="margin-bottom: 15px; display: none;"></div>
+                <div style="width: 100%; overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px;">
                         <thead>
-                            <tr style="background: #f1f2f6;">
-                                <th style="border: 1px solid #000; padding: 10px; text-align: left; font-weight: bold; width: 20%;">Nro. Padrón</th>
-                                <th style="border: 1px solid #000; padding: 10px; text-align: left; font-weight: bold; width: 45%;">Titular</th>
-                                <th style="border: 1px solid #000; padding: 10px; text-align: left; font-weight: bold; width: 35%;">Dirección</th>
+                            <tr style="background: #f8f9fa;">
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Nro. Padrón</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Titular</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Domicilio</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Cuotas Atr.</th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Deuda Obra</th>
                             </tr>
                         </thead>
                         <tbody id="modalTablaCuerpo"></tbody>
                     </table>
-                    <div id="modalTotalCaja"></div>
                 </div>
-
+                <div id="modalTotalCaja" style="background: #fdf2e9; border: 1px solid #e67e22; padding: 15px; text-align: right; font-weight: bold; margin-top: 15px; border-radius: 6px;"></div>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
