@@ -4,16 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TGI - Municipalidad de Rufino</title>
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
     <style>
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f0f0f0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
 
-        /* BARRA SUPERIOR DE BÚSQUEDA Y CAPAS */
+        /* BARRA SUPERIOR */
         .barra-superior {
             position: absolute; top: 10px; left: 10px; right: 10px; z-index: 2000;
             background: white; padding: 10px 15px; display: flex; align-items: center; gap: 10px;
-            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); overflow-x: auto;
         }
         
         .btn-hamburguesa {
@@ -22,22 +25,36 @@
         }
         .btn-hamburguesa:hover { background: #f0f2f5; }
 
-        .contenedor-busquedas { display: flex; gap: 10px; flex: 1; position: relative; }
+        .contenedor-busquedas { display: flex; gap: 10px; flex: 1; position: relative; min-width: 300px; }
         .wrapper-input { flex: 1; position: relative; }
 
-        /* MENÚ LATERAL HAMBURGUESA */
+        /* MENÚ LATERAL HAMBURGUESA CON ACORDEONES */
         .panel-lateral {
-            position: absolute; top: 0; left: -320px; bottom: 0; width: 280px; z-index: 2500;
+            position: absolute; top: 0; left: -340px; bottom: 0; width: 300px; z-index: 2500;
             background: white; padding: 20px; box-shadow: 4px 0 20px rgba(0,0,0,0.2);
             transition: left 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
-            display: flex; flex-direction: column; gap: 15px; max-height: 100vh; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 12px; max-height: 100vh; overflow-y: auto;
         }
         .panel-lateral.abierto { left: 0; }
 
         .header-panel-lateral { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .btn-cerrar-panel { background: none; border: none; font-size: 20px; cursor: pointer; color: #7f8c8d; }
 
-        /* FICHA TÉCNICA INDEPENDIENTE Y FLOTANTE */
+        /* ESTILOS DE GRUPOS / ACORDEÓN EN PANEL LATERAL */
+        .grupo-acordeon {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff;
+        }
+        .header-acordeon {
+            background: #f8fafc; padding: 10px 12px; font-weight: bold; font-size: 12px; color: #2c3e50;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;
+            border-bottom: 1px solid transparent; transition: background 0.2s;
+        }
+        .header-acordeon:hover { background: #f1f5f9; }
+        .grupo-acordeon.abierto .header-acordeon { border-bottom-color: #e2e8f0; }
+        .contenido-acordeon { padding: 10px; display: none; flex-direction: column; gap: 10px; }
+        .grupo-acordeon.abierto .contenido-acordeon { display: flex; }
+
+        /* FICHA TÉCNICA Y PANELES DERECHOS */
         .ficha-flotante-lote {
             position: absolute; top: 75px; left: 10px; z-index: 2000;
             background: white; width: 290px; max-height: 75vh; border-radius: 12px;
@@ -48,7 +65,6 @@
         .cuerpo-ficha-flotante { padding: 15px; overflow-y: auto; font-size: 11px; box-sizing: border-box; flex: 1; }
         .btn-cerrar-ficha { background: #e74c3c; color: white; border: none; width: 22px; height: 22px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; }
 
-        /* PANEL DERECHO */
         .panel-derecho {
             position: absolute; top: 75px; right: 10px; z-index: 1000;
             background: white; width: 280px; max-width: 280px; min-width: 280px; border-radius: 12px; 
@@ -66,7 +82,7 @@
         .btn-accion-analisis:hover { background: #2980b9; }
 
         h2 { font-size: 12px; margin: 0; color: #2c3e50; text-transform: uppercase; }
-        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
+        input, select { width: 100%; padding: 9px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; outline: none; }
         select { background-color: white; color: #2c3e50; cursor: pointer; }
 
         #listaSugerencias, #listaSugerenciasCalle { 
@@ -77,7 +93,6 @@
         .item-sugerencia { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 11px; }
         .item-sugerencia:hover { background: #f8f9fa; color: #3498db; }
 
-        /* Paneles dinámicos internos */
         #panelEstadisticaCalle { display: none; background: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 5px solid #00fbff; }
         #panelEstadisticaObra { display: none; background: #f8f9fa; padding: 12px; border-radius: 10px; border-left: 5px solid #e67e22; position: relative; }
 
@@ -85,24 +100,21 @@
         .barra-progreso { background: #ddd; border-radius: 4px; height: 8px; width: 100%; margin-top: 2px; overflow: hidden; }
         .progreso-llenado { height: 100%; transition: width 0.5s ease; }
         
-        .lote-calle-resaltada { stroke: #00fbff !important; stroke-width: 2px !important; stroke-opacity: 1 !important; fill-opacity: 0.4 !important; z-index: 1000 !important; }
-        
-        @keyframes parpadear { 0% { fill-opacity: 0.2; } 50% { fill-opacity: 1; } 100% { fill-opacity: 0.2; } }
-        .lote-parpadeando { animation: parpadear 0.5s ease-in-out 5 !important; stroke: #ff00ff !important; stroke-width: 4px !important; z-index: 1500 !important; }
-        
         .etiqueta { font-weight: bold; color: #7f8c8d; }
         .valor { color: #2c3e50; margin-left: 5px; }
         .deuda { color: #e74c3c; font-weight: bold; }
         .vencer { color: #f1c40f; font-weight: bold; }
 
         /* BOTONES DE LA BARRA SUPERIOR */
-        .btn-filtro-baldios, .btn-filtro-satelite {
-            padding: 10px 15px; border: 1px solid #ccc; background: #fff;
+        .btn-filtro-baldios, .btn-filtro-satelite, .btn-filtro-muni, .btn-seleccion-multiple {
+            padding: 9px 12px; border: 1px solid #ccc; background: #fff;
             color: #333; border-radius: 6px; cursor: pointer; font-weight: bold;
-            font-size: 12px; transition: all 0.2s; white-space: nowrap;
+            font-size: 11px; transition: all 0.2s; white-space: nowrap;
         }
         .btn-filtro-baldios.activo { background: #2ecc71; color: white; border-color: #27ae60; }
         .btn-filtro-satelite.activo { background: #34495e; color: white; border-color: #2c3e50; }
+        .btn-filtro-muni.activo { background: #2980b9; color: white; border-color: #1b4f72; }
+        .btn-seleccion-multiple.activo { background: #9b59b6; color: white; border-color: #8e44ad; }
 
         /* TOTALIZADOR CENTRADO ABAJO */
         .totalizador-baldios-flotante {
@@ -113,20 +125,11 @@
         }
 
         #btnImprimirObra {
-            width: 100%; margin-top: 15px; padding: 10px; background: #d35400; color: white; 
-            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+            width: 100%; margin-top: 10px; padding: 10px; background: #d35400; color: white; 
+            border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 11px;
             display: none; transition: background 0.3s;
         }
         #btnImprimirObra:hover { background: #e67e22; }
-        .link-padron-modal { color: #3498db; text-decoration: underline; font-weight: bold; cursor: pointer; }
-
-        /* NUEVOS ESTILOS: SELECCIÓN MÚLTIPLE DE LOTES */
-        .btn-seleccion-multiple {
-            padding: 10px 15px; border: 1px solid #ccc; background: #fff;
-            color: #2c3e50; border-radius: 6px; cursor: pointer; font-weight: bold;
-            font-size: 12px; transition: all 0.2s; white-space: nowrap;
-        }
-        .btn-seleccion-multiple.activo { background: #9b59b6; color: white; border-color: #8e44ad; }
 
         .panel-seleccion-flotante {
             position: absolute; bottom: 20px; left: 20px; z-index: 2000;
@@ -134,118 +137,126 @@
             border-radius: 12px; font-size: 13px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             display: none; flex-direction: column; gap: 10px; width: 250px;
         }
-        .panel-seleccion-flotante h3 { margin: 0; font-size: 13px; color: #2c3e50; text-transform: uppercase; }
+        .panel-seleccion-flotante h3 { margin: 0; font-size: 12px; color: #2c3e50; text-transform: uppercase; }
         .btn-imprimir-seleccion {
             background: #9b59b6; color: white; border: none; padding: 8px;
             border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 11px;
         }
-        .btn-imprimir-seleccion:hover { background: #8e44ad; }
-        
-        /* ESTILO VISUAL DE LOTE SELECCIONADO EN MAPA */
-        .lote-seleccionado-multiple { stroke: #00ffff !important; stroke-width: 3px !important; stroke-opacity: 1 !important; fill: #00ffff !important; fill-opacity: 0.5 !important; }
 
-        /* CONTENEDORES EXCLUSIVOS PARA IMPRESIÓN EXTRAPOLADA (OCULTOS EN PANTALLA) */
+        /* CUADRO DE LEYENDA Y REFERENCIAS */
+        .leyenda-mapa {
+            position: absolute; bottom: 20px; right: 20px; z-index: 1000;
+            background: white; padding: 12px 15px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 11px; color: #2c3e50;
+            display: flex; flex-direction: column; gap: 8px; border: 1px solid #e2e8f0;
+        }
+        .leyenda-mapa h4 { margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; color: #7f8c8d; border-bottom: 1px solid #edf2f7; padding-bottom: 4px; }
+        .item-leyenda { display: flex; align-items: center; gap: 8px; }
+        .color-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.2); display: inline-block; }
+
         #contenedorImpresionMapa, #contenedorImpresionDatos { display: none; }
 
         @media print {
-            /* Forzar ocultar toda la interfaz web */
             html, body { overflow: visible !important; height: auto !important; background: white !important; }
-            .no-print, .barra-superior, .panel-lateral, .panel-derecho, .ficha-flotante-lote, .totalizador-baldios-flotante, .panel-seleccion-flotante, #map, #modalPrevisualizacion { display: none !important; }
-            
-            /* MOSTRAR CONTENEDORES DE IMPRESIÓN */
-            #contenedorImpresionMapa { display: block !important; width: 100vw !important; height: 98vh !important; page-break-after: always; break-after: page; }
-            #contenedorImpresionMapa img { width: 100%; height: 100%; object-fit: contain; }
-
-            #contenedorImpresionDatos { display: block !important; width: 100% !important; padding: 20px !important; box-sizing: border-box; page-break-before: always; break-before: page; }
+            .no-print, .barra-superior, .panel-lateral, .panel-derecho, .ficha-flotante-lote, .totalizador-baldios-flotante, .panel-seleccion-flotante, .leyenda-mapa, #map, #modalPrevisualizacion { display: none !important; }
+            #contenedorImpresionDatos { display: block !important; width: 100% !important; padding: 20px !important; box-sizing: border-box; }
             .tabla-impresion-lotes { width: 100%; border-collapse: collapse; font-family: sans-serif; margin-top: 20px; }
             .tabla-impresion-lotes th { background: #f2f2f2; border: 1px solid #000; padding: 8px; text-align: left; font-size: 12px; }
             .tabla-impresion-lotes td { border: 1px solid #000; padding: 8px; font-size: 11px; }
-            
             .totalizador-hoja-datos { background: #f9f9f9; border: 1px solid #000; padding: 12px; font-weight: bold; font-size: 13px; text-align: right; margin-top: 15px; }
         }
 
-        /* DISEÑO EXCLUSIVO CELULARES Y DISPOSITIVOS MÓVILES */
         @media (max-width: 768px) {
             .barra-superior { padding: 8px 12px !important; border-radius: 8px !important; gap: 6px !important; }
-            
-            /* Ocultamos las búsquedas de la barra superior en celular */
             .barra-superior .contenedor-busquedas { display: none !important; }
-            
-            /* Hacemos visibles las búsquedas dentro de la hamburguesa lateral */
             .panel-lateral .contenedor-busquedas { display: flex !important; flex-direction: column !important; margin-bottom: 10px !important; }
-            
-            .btn-filtro-baldios, .btn-filtro-satelite, .btn-seleccion-multiple { font-size: 11px !important; padding: 8px 10px !important; flex: 1; text-align: center; }
             .panel-lateral { width: 85% !important; max-width: 320px !important; left: -360px !important; }
             .panel-lateral.abierto { left: 0 !important; }
-            
             .ficha-flotante-lote { top: auto !important; bottom: 15px !important; left: 10px !important; right: 10px !important; width: auto !important; max-height: 42vh !important; }
             .panel-derecho { top: auto !important; bottom: 75px !important; right: 10px !important; left: 10px !important; width: auto !important; max-width: none !important; min-width: 0 !important; }
-            .totalizador-baldios-flotante { bottom: 12px !important; font-size: 11px !important; padding: 6px 12px !important; }
-            .panel-seleccion-flotante { bottom: 75px !important; left: 10px !important; right: 10px !important; width: auto !important; }
+            .leyenda-mapa { display: none; } /* Se oculta en móviles para ganar visibilidad */
         }
     </style>
 </head>
 <body>
 
     <div class="barra-superior no-print">
-        <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Filtros y Capas">☰</button>
+        <button class="btn-hamburguesa" onclick="togglePanelLateral()" title="Abrir Menú y Filtros">☰</button>
         
         <div class="contenedor-busquedas">
             <div class="wrapper-input">
-                <input type="text" id="inputApellido" placeholder="🔎 Buscar por Apellido o Nro. Padrón..." autocomplete="off">
+                <input type="text" id="inputApellido" placeholder="🔎 Buscar por Apellido o Padrón..." autocomplete="off">
                 <div id="listaSugerencias"></div>
             </div>
             <div class="wrapper-input">
-                <input type="text" id="inputCalle" placeholder="🛣️ Buscar por Nombre de Calle..." autocomplete="off">
+                <input type="text" id="inputCalle" placeholder="🛣️ Buscar por Calle..." autocomplete="off">
                 <div id="listaSugerenciasCalle"></div>
             </div>
         </div>
 
+        <button id="btnToggleMuni" class="btn-filtro-muni">🏛️ Prop. Municipalidad: OFF</button>
         <button id="btnToggleSeleccion" class="btn-seleccion-multiple">🔲 Selección Múltiple: OFF</button>
         <button id="btnToggleSatelite" class="btn-filtro-satelite">🛰️ Satelital: APAGADO</button>
         <button id="btnToggleBaldios" class="btn-filtro-baldios">⬜ Resaltar Baldíos: APAGADO</button>
     </div>
 
+    <!-- MENÚ LATERAL ORGANIZADO EN GRUPOS / ACORDEÓN -->
     <div class="panel-lateral no-print" id="panelLateral">
         <div class="header-panel-lateral">
-            <h2>Filtros y Capas</h2>
+            <h2>Panel de Control</h2>
             <button class="btn-cerrar-panel" onclick="togglePanelLateral()">✕</button>
         </div>
 
-        <div class="contenedor-busquedas" style="display: none;">
-            <div class="wrapper-input" style="margin-bottom: 8px;">
-                <input type="text" id="inputApellidoMovil" placeholder="🔎 Buscar por Apellido o Padrón..." autocomplete="off">
-                <div id="listaSugerenciasMovil" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; display: none; z-index: 3100;"></div>
+        <!-- GRUPO 1: BÚSQUEDA Y SECTORIZACIÓN -->
+        <div class="grupo-acordeon abierto" id="grupoSectorizacion">
+            <div class="header-acordeon" onclick="toggleAcordeon('grupoSectorizacion')">
+                <span>📍 Sectorización y Zonas</span>
+                <span class="icono-acordeon">▼</span>
             </div>
-            <div class="wrapper-input">
-                <input type="text" id="inputCalleMovil" placeholder="🛣️ Buscar por Calle..." autocomplete="off">
-                <div id="listaSugerenciasCalleMovil" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; display: none; z-index: 3100;"></div>
-            </div>
-        </div>
-
-        <select id="selectSeccion">
-            <option value="">🧱 Seleccionar Sección...</option>
-        </select>
-
-        <select id="selectObra" style="border-color: #e67e22;">
-            <option value="">🚧 Seleccionar Obra...</option>
-        </select>
-
-        <div id="panelEstadisticaCalle">
-            <h2 style="font-size: 11px; color: #16a085;">ANÁLISIS DE CALLE</h2>
-            <div id="statsCalleContenido"></div>
-            <div style="height: 120px; margin-top: 10px;">
-                <canvas id="graficoCalle"></canvas>
+            <div class="contenido-acordeon">
+                <select id="selectSeccion">
+                    <option value="">🧱 Seleccionar Sección...</option>
+                </select>
             </div>
         </div>
 
-        <div id="panelEstadisticaObra">
-            <h2 style="font-size: 11px; color: #d35400;">INFORME DE OBRA PÚBLICA</h2>
-            <div id="statsObraContenido"></div>
-            <div style="height: 120px; margin-top: 10px;">
-                <canvas id="graficoObra"></canvas>
+        <!-- GRUPO 2: OBRAS PÚBLICAS Y PROYECTOS -->
+        <div class="grupo-acordeon" id="grupoObras">
+            <div class="header-acordeon" onclick="toggleAcordeon('grupoObras')">
+                <span>🚧 Obras Públicas</span>
+                <span class="icono-acordeon">►</span>
             </div>
-            <button id="btnImprimirObra">📄 Previsualizar Listado</button>
+            <div class="contenido-acordeon">
+                <select id="selectObra" style="border-color: #e67e22;">
+                    <option value="">🚧 Seleccionar Obra...</option>
+                </select>
+                
+                <div id="panelEstadisticaObra">
+                    <h2 style="font-size: 11px; color: #d35400;">INFORME DE OBRA PÚBLICA</h2>
+                    <div id="statsObraContenido"></div>
+                    <div style="height: 120px; margin-top: 10px;">
+                        <canvas id="graficoObra"></canvas>
+                    </div>
+                    <button id="btnImprimirObra">📄 Previsualizar Listado</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRUPO 3: ANÁLISIS DE VIA PÚBLICA -->
+        <div class="grupo-acordeon" id="grupoCalle">
+            <div class="header-acordeon" onclick="toggleAcordeon('grupoCalle')">
+                <span>🛣️ Análisis por Calle</span>
+                <span class="icono-acordeon">►</span>
+            </div>
+            <div class="contenido-acordeon">
+                <div id="panelEstadisticaCalle">
+                    <h2 style="font-size: 11px; color: #16a085;">ANÁLISIS DE CALLE</h2>
+                    <div id="statsCalleContenido"></div>
+                    <div style="height: 120px; margin-top: 10px;">
+                        <canvas id="graficoCalle"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -280,11 +291,29 @@
         🟢 Terrenos Baldíos Totales: <span id="numBaldios">0</span>
     </div>
 
-    <div id="contenedorImpresionMapa">
-        <div id="mapaEspejoImpresion" style="width: 100%; height: 100%;"></div>
+    <!-- REFERENCIAS Y LEYENDA DEL MAPA INICIAL -->
+    <div class="leyenda-mapa no-print" id="leyendaMapa">
+        <h4>Referencias del Mapa</h4>
+        <div class="item-leyenda">
+            <span class="color-box" style="background: #2980b9;"></span>
+            <span>Municipalidad (Exento)</span>
+        </div>
+        <div class="item-leyenda">
+            <span class="color-box" style="background: #e74c3c;"></span>
+            <span>Con Deuda (+1 mes)</span>
+        </div>
+        <div class="item-leyenda">
+            <span class="color-box" style="background: #f1c40f;"></span>
+            <span>A Vencer (1 mes)</span>
+        </div>
+        <div class="item-leyenda">
+            <span class="color-box" style="background: transparent; border: 1px dashed #aaa;"></span>
+            <span>Al Día / Sin Deuda</span>
+        </div>
     </div>
+
     <div id="contenedorImpresionDatos">
-        <h2>Reporte Catastral - Lotes Seleccionados</h2>
+        <h2>MUNICIPALIDAD DE RUFINO - Reporte Catastral</h2>
         <hr>
         <table class="tabla-impresion-lotes">
             <thead>
@@ -331,10 +360,9 @@
         </div>
     </div>
 
+    <!-- Librerías Externas -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <script src="script.js"></script>
 </body>
 </html>
