@@ -358,15 +358,73 @@ input[type="text"], select {
 
 .btn-toggle-panel-mobile { display: none; }
 
+/* ==========================================
+   AJUSTES ADAPTATIVOS PARA CELULARES
+   ========================================== */
 @media (max-width: 768px) {
-    .barra-busqueda-superior { width: 80%; top: 10px; }
-    .panel-lateral { display: none; width: 280px; left: 10px; }
-    .panel-lateral.abierto { display: flex; }
+    /* Ajuste de la barra superior de búsqueda */
+    .barra-busqueda-superior { 
+        width: calc(100% - 110px); 
+        top: 10px; 
+        right: 10px;
+        left: auto;
+        transform: none;
+    }
+
+    /* Ajuste del panel lateral desplazable sobre la pantalla */
+    .panel-lateral { 
+        display: none; 
+        width: 85%;
+        max-width: 300px; 
+        top: 60px;
+        left: 10px;
+        bottom: 10px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+
+    .panel-lateral.abierto { 
+        display: flex; 
+    }
+
+    /* Botón flotante para abrir el panel */
     .btn-toggle-panel-mobile {
         display: block;
         position: absolute;
-        top: 10px; left: 10px; z-index: 1100;
-        padding: 8px 12px; background: #2c3e50; color: white;
-        border: none; border-radius: 6px; font-weight: bold;
+        top: 10px; 
+        left: 10px; 
+        z-index: 1100;
+        padding: 9px 12px; 
+        background: #2c3e50; 
+        color: white;
+        border: none; 
+        border-radius: 20px; 
+        font-weight: bold;
+        font-size: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Adaptación de la Leyenda del mapa al pie de la pantalla */
+    .leyenda-mapa {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        padding: 8px 10px;
+    }
+
+    /* Ficha flotante adaptada para pantallas pequeñas */
+    .panel-ficha-flotante {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        max-height: 50vh;
+    }
+
+    /* Gráfico flotante general adaptado */
+    .panel-grafico-flotante {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+        top: 60px;
     }
 }
