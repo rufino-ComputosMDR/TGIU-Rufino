@@ -42,7 +42,7 @@ let loteSeleccionadoActual = null;
 let modoSeleccionMultiple = false;
 let lotesSeleccionadosMultiples = [];
 
-// Formatador de Moneda ARS reutizable
+// Formatador de Moneda ARS reutilizable
 const formatterARS = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS'
@@ -70,7 +70,11 @@ window.toggleAcordeon = function (idGrupo) {
 };
 
 window.togglePanelLateral = function () {
-  document.getElementById('panelLateral').classList.toggle('abierto');
+  const panel = document.getElementById('panelLateral');
+  if (panel) {
+    panel.classList.toggle('abierto');
+    panel.classList.toggle('oculto');
+  }
 };
 
 // ==========================================
@@ -250,7 +254,7 @@ function unificarPuntosColineales(puntos) {
   }));
 
   let huboCambios = true;
-  let iteracionesMax = 5; // Límite de iteraciones para evitar bucles infinitos
+  let iteracionesMax = 5;
 
   while (huboCambios && pts.length > 3 && iteracionesMax > 0) {
     huboCambios = false;
@@ -336,7 +340,7 @@ function limpiarMedidasLote() {
 }
 
 // ==========================================
-// 8. INTERACCIONES Y SELECCIÓN MULTIPLE
+// 8. INTERACCIONES Y SELECCIÓN MÚLTIPLE
 // ==========================================
 function toggleSeleccionLote(feature, layer) {
   const padronVal = buscarProp(feature.properties, "Padron") || buscarProp(feature.properties, "Contribuyente");

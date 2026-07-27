@@ -428,3 +428,63 @@ input[type="text"], select {
         top: 60px;
     }
 }
+/* ==========================================
+   CONTROL DE VISIBILIDAD DEL PANEL LATERAL
+   ========================================== */
+
+/* Hace visible el botón de menú en escritorio */
+.btn-toggle-panel-mobile {
+    display: block !important;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1100;
+    padding: 8px 14px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.btn-toggle-panel-mobile:hover {
+    background: #34495e;
+}
+
+.btn-toggle-panel-mobile:active {
+    transform: scale(0.95);
+}
+
+/* Transición suave para el panel lateral al ocultarse/mostrarse */
+.panel-lateral {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Estado oculto para pantallas de escritorio/computadora */
+@media (min-width: 769px) {
+    .panel-lateral.oculto {
+        transform: translateX(-320px);
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+/* Ajustes para pantallas de celular */
+@media (max-width: 768px) {
+    .panel-lateral {
+        display: flex !important;
+        transform: translateX(-110%); /* Oculto por defecto en móvil */
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .panel-lateral.abierto {
+        transform: translateX(0); /* Visible cuando se activa */
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
