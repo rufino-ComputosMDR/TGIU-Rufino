@@ -1,172 +1,510 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Interactivo TGI - Municipalidad</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Estilos personalizados -->
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Gestión Catastral TGI - Rufino</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Estilos del Sistema -->
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #f4f6f9;
+      color: #333;
+    }
+
+    /* BARRA LATERAL (PANEL) */
+    #panelLateral {
+      width: 340px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+      transition: margin-left 0.3s ease;
+    }
+
+    #panelLateral.oculto {
+      margin-left: -340px;
+    }
+
+    .header-panel {
+      background: #2c3e50;
+      color: #ffffff;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-panel h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .contenido-panel {
+      padding: 15px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* BOTONES Y HERRAMIENTAS BARRA SUPERIOR */
+    .barra-herramientas {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .btn-tool {
+      width: 100%;
+      padding: 9px 12px;
+      background: #ecf0f1;
+      border: 1px solid #bdc3c7;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: #2c3e50;
+      text-align: left;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn-tool:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-tool.activo {
+      background: #3498db;
+      color: #ffffff;
+      border-color: #2980b9;
+    }
+
+    .btn-accion {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-accion:hover {
+      background: #219150;
+    }
+
+    /* ACORDEONES */
+    .grupo-acordeon {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .cabecera-acordeon {
+      background: #f8fafc;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #334155;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .cuerpo-acordeon {
+      display: none;
+      padding: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .grupo-acordeon.abierto .cuerpo-acordeon {
+      display: block;
+    }
+
+    /* INPUTS Y SELECTS */
+    input[type="text"], select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-top: 4px;
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: #3498db;
+    }
+
+    /* LISTA SUGERENCIAS BÚSQUEDA */
+    .contenedor-sugerencias {
+      position: relative;
+    }
+
+    .lista-sugerencias {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 0 0 4px 4px;
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 2000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .item-sugerencia {
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .item-sugerencia:hover {
+      background: #f8fafc;
+    }
+
+    /* PANELES DE GRÁFICOS Y ESTADÍSTICAS */
+    .panel-grafico-contenedor {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 25px 10px 10px 10px;
+      margin-top: 10px;
+      position: relative;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .btn-cerrar-grafico {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      background: transparent;
+      border: none;
+      font-weight: bold;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .btn-cerrar-grafico:hover {
+      background-color: #ef4444;
+      color: #ffffff;
+    }
+
+    .barra-progreso {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 4px 0 8px 0;
+    }
+
+    .progreso-llenado {
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    .etiqueta-porcentaje {
+      font-size: 10px;
+      font-weight: bold;
+      color: #64748b;
+    }
+
+    /* MAPA */
+    #map {
+      flex: 1;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* BOTÓN TOGGLE PANEL LATERAL */
+    .btn-toggle-panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 1001;
+      background: #2c3e50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* FICHA TÉCNICA FLOTANTE */
+    #panelFichaFlotante {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      max-height: 80vh;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      z-index: 1000;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+    }
+
+    .cabecera-ficha {
+      background: #2c3e50;
+      color: white;
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .cuerpo-ficha {
+      padding: 15px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+
+    .cuerpo-ficha p {
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .cuerpo-ficha .etiqueta {
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .cuerpo-ficha .valor {
+      font-weight: 600;
+      color: #1e293b;
+      text-align: right;
+    }
+
+    .cuerpo-ficha .deuda { color: #ef4444; font-weight: bold; }
+    .cuerpo-ficha .vencer { color: #f59e0b; font-weight: bold; }
+
+    /* TOOLTIP DE MEDIDAS DE LOTE */
+    .etiqueta-medida-lote {
+      background: rgba(0, 0, 0, 0.75) !important;
+      border: none !important;
+      color: #ffffff !important;
+      font-weight: bold !important;
+      font-size: 10px !important;
+      padding: 1px 4px !important;
+      border-radius: 3px !important;
+      box-shadow: none !important;
+    }
+
+    /* ÁREA DE IMPRESIÓN OCULTA */
+    #areaImpresionGlobal {
+      display: none;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #areaImpresionGlobal, #areaImpresionGlobal * { visibility: visible; }
+      #areaImpresionGlobal { display: block; position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
 </head>
 <body>
 
-    <!-- BARRA HORIZONTAL SUPERIOR EXCLUSIVA PARA BÚSQUEDA DE CONTRIBUYENTE -->
-    <div class="barra-busqueda-superior no-print">
-        <div class="contenedor-input-busqueda">
-            <span class="icono-busqueda">🔍</span>
-            <input type="text" id="inputApellido" class="input-busqueda-horizontal" placeholder="Buscar por Contribuyente, Titular o Padrón..." autocomplete="off">
-        </div>
-        <div id="listaSugerencias" class="lista-sugerencias-horizontal"></div>
+  <!-- Botón alternar visibilidad panel -->
+  <button class="btn-toggle-panel" onclick="togglePanelLateral()">☰ Menú</button>
+
+  <!-- PANEL LATERAL -->
+  <div id="panelLateral">
+    <div class="header-panel">
+      <h2>Catastro TGI Rufino</h2>
     </div>
 
-    <!-- BOTÓN PARA DESPLEGAR PANEL EN MÓVILES -->
-    <button class="btn-toggle-panel-mobile no-print" onclick="togglePanelLateral()">☰ Filtros</button>
+    <div class="contenido-panel">
 
-    <!-- PANEL LATERAL DE HERRAMIENTAS (IZQUIERDA) -->
-    <div class="panel-lateral no-print" id="panelLateral">
-        <h2>🏛️ Mapa Catastral TGI</h2>
+      <!-- BARRA DE HERRAMIENTAS Y RENDERIZADO -->
+      <div class="barra-herramientas">
+        <button id="btnToggleTGI" class="btn-tool activo">🗺️ Mapa Catastral TGI: ON</button>
+        <button id="btnToggleBaldios" class="btn-tool">⬜ Resaltar Baldíos: APAGADO</button>
+        <button id="btnToggleMuni" class="btn-tool">🏛️ Prop. Municipalidad: OFF</button>
+        <button id="btnToggleSatelite" class="btn-tool">🛰️ Satelital: APAGADO</button>
+        <button id="btnToggleSeleccion" class="btn-tool">🔲 Selección Múltiple: OFF</button>
+      </div>
 
-        <!-- SECCIÓN DE HERRAMIENTAS AGRUPADAS -->
-        <div class="grupo-acordeon abierto" id="grupoHerramientas">
-            <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoHerramientas')">
-                <span>⚙️ Herramientas de Capa</span>
-                <span class="icono-acordeon">▼</span>
-            </div>
-            <div class="contenido-acordeon">
-                <div class="contenedor-herramientas-menu">
-                    <button id="btnToggleBaldios" class="btn-tool-menu">⬜ Resaltar Baldíos: APAGADO</button>
-                    <button id="btnToggleMuni" class="btn-tool-menu">🏛️ Prop. Municipalidad: OFF</button>
-                    <button id="btnToggleSatelite" class="btn-tool-menu">🛰️ Satelital: APAGADO</button>
-                    <button id="btnToggleSeleccion" class="btn-tool-menu">🔲 Selección Múltiple: OFF</button>
-                </div>
-            </div>
+      <!-- PANEL CONTADOR BALDÍOS -->
+      <div id="totalizadorBaldios" style="display:none; background:#e8f8f5; border:1px solid #2ecc71; padding:8px; border-radius:5px; margin-bottom:10px; font-size:12px; color:#27ae60;">
+        🍃 Total Terrenos Baldíos: <strong id="numBaldios">0</strong>
+      </div>
+
+      <!-- PANEL SELECCIÓN MÚLTIPLE -->
+      <div id="panelSeleccionMultiple" style="display:none; flex-direction:column; gap:5px; background:#f0fdf4; border:1px solid #bbf7d0; padding:10px; border-radius:5px; margin-bottom:10px; font-size:12px;">
+        <span>Lotes Seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
+        <button class="btn-accion" style="padding:6px; font-size:11px;" onclick="imprimirLotesSeleccionados()">🖨️ Imprimir Lista Seleccionados</button>
+      </div>
+
+      <!-- BUSCADOR TITULAR / PADRÓN -->
+      <div class="grupo-acordeon" id="grupoBuscador">
+        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoBuscador')">
+          <span>🔍 Buscar Titular / Padrón</span>
+          <span class="icono-acordeon">►</span>
         </div>
-        
-        <!-- SECCIÓN 1: BÚSQUEDA POR CALLE -->
-        <div class="grupo-acordeon" id="grupoCalle">
-            <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoCalle')">
-                <span>📍 Filtrar por Calle</span>
-                <span class="icono-acordeon">►</span>
-            </div>
-            <div class="contenido-acordeon">
-                <input type="text" id="inputCalle" placeholder="Buscar por Calle / Domicilio..." autocomplete="off">
-                <div id="listaSugerenciasCalle" class="lista-sugerencias"></div>
-
-                <div id="panelEstadisticaCalle" class="panel-estadistica-mini" style="display:none;">
-                    <div id="statsCalleContenido"></div>
-                    <div class="contenedor-chart-mini">
-                        <canvas id="graficoCalle"></canvas>
-                    </div>
-                </div>
-            </div>
+        <div class="cuerpo-acordeon">
+          <div class="contenedor-sugerencias">
+            <input type="text" id="inputApellido" placeholder="Ej: Perez o Padrón 1234..." autocomplete="off" />
+            <div id="listaSugerencias" class="lista-sugerencias"></div>
+          </div>
         </div>
+      </div>
 
-        <!-- SECCIÓN 2: SECCIONES CATASTRALES -->
-        <div class="grupo-acordeon" id="grupoSecciones">
-            <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoSecciones')">
-                <span>🧱 Filtrar por Sección</span>
-                <span class="icono-acordeon">►</span>
-            </div>
-            <div class="contenido-acordeon">
-                <select id="selectSeccion">
-                    <option value="">🧱 Seleccionar Sección...</option>
-                </select>
-            </div>
+      <!-- BUSCADOR POR CALLE -->
+      <div class="grupo-acordeon" id="grupoCalle">
+        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoCalle')">
+          <span>🛣️ Buscar por Calle</span>
+          <span class="icono-acordeon">►</span>
         </div>
+        <div class="cuerpo-acordeon">
+          <div class="contenedor-sugerencias">
+            <input type="text" id="inputCalle" placeholder="Nombre de la calle..." autocomplete="off" />
+            <div id="listaSugerenciasCalle" class="lista-sugerencias"></div>
+          </div>
 
-        <!-- SECCIÓN 3: OBRAS PÚBLICAS -->
-        <div class="grupo-acordeon" id="grupoObras">
-            <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoObras')">
-                <span>🚧 Filtrar por Obra</span>
-                <span class="icono-acordeon">►</span>
+          <!-- PANEL ESTADÍSTICA CALLE CON BOTÓN CERRAR -->
+          <div id="panelEstadisticaCalle" class="panel-grafico-contenedor" style="display:none;">
+            <button onclick="ocultarContenedorGraficoCalle()" class="btn-cerrar-grafico" title="Cerrar">✕</button>
+            <div id="statsCalleContenido"></div>
+            <div style="height: 120px; position: relative; margin-top: 8px;">
+              <canvas id="graficoCalle"></canvas>
             </div>
-            <div class="contenido-acordeon">
-                <select id="selectObra">
-                    <option value="">🚧 Seleccionar Obra...</option>
-                </select>
+          </div>
+        </div>
+      </div>
 
-                <div id="panelEstadisticaObra" class="panel-estadistica-mini" style="display:none;">
-                    <div id="statsObraContenido"></div>
-                    <div class="contenedor-chart-mini">
-                        <canvas id="graficoObra"></canvas>
-                    </div>
-                    <button id="btnImprimirObra" class="btn-accion" style="margin-top: 10px; display:none;">🖨️ Imprimir Resumen de Obra</button>
-                </div>
+      <!-- FILTRO SECCIONES -->
+      <div class="grupo-acordeon" id="grupoSeccion">
+        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoSeccion')">
+          <span>🧱 Filtrar por Sección</span>
+          <span class="icono-acordeon">►</span>
+        </div>
+        <div class="cuerpo-acordeon">
+          <select id="selectSeccion">
+            <option value="">🧱 Seleccionar Sección...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- FILTRO OBRAS PÚBLICAS -->
+      <div class="grupo-acordeon" id="grupoObra">
+        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoObra')">
+          <span>🚧 Obras Públicas</span>
+          <span class="icono-acordeon">►</span>
+        </div>
+        <div class="cuerpo-acordeon">
+          <select id="selectObra">
+            <option value="">🚧 Seleccionar Obra...</option>
+          </select>
+
+          <!-- PANEL ESTADÍSTICA OBRA CON BOTÓN CERRAR -->
+          <div id="panelEstadisticaObra" class="panel-grafico-contenedor" style="display:none;">
+            <button onclick="ocultarContenedorGraficoObra()" class="btn-cerrar-grafico" title="Cerrar">✕</button>
+            <div id="statsObraContenido"></div>
+            <div style="height: 120px; position: relative; margin-top: 8px;">
+              <canvas id="graficoObra"></canvas>
             </div>
+            <button id="btnImprimirObra" class="btn-accion" style="display:none; margin-top:8px; font-size:11px; padding:6px;">🖨️ Imprimir Informe Obra</button>
+          </div>
         </div>
+      </div>
 
-        <!-- BOTÓN ESTADÍSTICA GENERAL -->
-        <button class="btn-accion" onclick="solicitarGraficoGeneral()">📊 Ver Gráfico Estadístico General</button>
-
-        <!-- PANEL DE TOTALIZADOR DE BALDÍOS -->
-        <div id="totalizadorBaldios" class="panel-totalizador" style="display:none;">
-            <span>Terrenos Baldíos Detectados:</span>
-            <strong id="numBaldios">0</strong>
+      <!-- INFORMES MUNICIPALES -->
+      <div class="grupo-acordeon" id="grupoInformes">
+        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoInformes')">
+          <span>🏛️ Informes Generales</span>
+          <span class="icono-acordeon">►</span>
         </div>
-
-        <!-- PANEL SELECCIÓN MÚLTIPLE -->
-        <div id="panelSeleccionMultiple" class="panel-totalizador" style="display:none;">
-            <span>Lotes seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
-            <button class="btn-accion" onclick="imprimirLotesSeleccionados()" style="margin-top: 5px;">🖨️ Imprimir Seleccionados</button>
+        <div class="cuerpo-acordeon">
+          <button class="btn-accion" style="background:#2980b9;" onclick="imprimirLotesMunicipales()">📄 Exportar Lotes Municipales</button>
+          <button class="btn-accion" style="background:#8e44ad;" onclick="solicitarGraficoGeneral()">📊 Ver Gráfico Deuda General</button>
         </div>
+      </div>
+
+      <!-- GRÁFICO DEUDA GENERAL TGI CON BOTÓN CERRAR -->
+      <div id="contenedorGraficoGeneral" class="panel-grafico-contenedor" style="display:none;">
+        <button onclick="ocultarContenedorGraficoGeneral()" class="btn-cerrar-grafico" title="Cerrar Gráfico">✕</button>
+        <h4 style="margin: 0 0 10px 0; font-size: 12px; text-align: center; color: #2c3e50;">Estado Deuda TGI General</h4>
+        <div style="height: 180px; position: relative;">
+          <canvas id="graficoBarras"></canvas>
+        </div>
+      </div>
+
     </div>
+  </div>
 
-    <!-- MAPA LEAFLET -->
-    <div id="map"></div>
+  <!-- MAPA PRINCIPAL -->
+  <div id="map"></div>
 
-    <!-- CONTENEDOR FLOTANTE PARA GRÁFICO GENERAL -->
-    <div id="contenedorGraficoGeneral" class="panel-grafico-flotante no-print" style="display:none;">
-        <div class="cabecera-panel">
-            <span>📊 Distribución General de Deuda TGI</span>
-            <button onclick="ocultarContenedorGraficoGeneral()">❌</button>
-        </div>
-        <div class="cuerpo-grafico">
-            <canvas id="graficoBarras"></canvas>
-        </div>
+  <!-- PANEL FICHA FLOTANTE -->
+  <div id="panelFichaFlotante">
+    <div class="cabecera-ficha">
+      <span>Ficha Catastral</span>
+      <span style="cursor:pointer;" onclick="cerrarFicha()">✕</span>
     </div>
+    <div id="cuerpoFichaContenido" class="cuerpo-ficha"></div>
+  </div>
 
-    <!-- LEYENDA Y REFERENCIAS EN MAPA -->
-    <div class="leyenda-mapa no-print" id="leyendaMapa">
-        <h4>Referencias del Mapa</h4>
-        <div class="item-leyenda">
-            <span class="color-box" style="background: #2980b9;"></span>
-            <span>Municipalidad (Exento)</span>
-        </div>
-        <div class="item-leyenda">
-            <span class="color-box" style="background: #e74c3c;"></span>
-            <span>Con Deuda (+1 mes)</span>
-        </div>
-        <div class="item-leyenda">
-            <span class="color-box" style="background: #f1c40f;"></span>
-            <span>A Vencer (1 mes)</span>
-        </div>
-        <div class="item-leyenda">
-            <span class="color-box" style="background: transparent; border: 1px dashed #aaa;"></span>
-            <span>Al Día / Sin Deuda</span>
-        </div>
+  <!-- VISTA OCULTA PARA IMPRESIÓN MÚLTIPLE -->
+  <div id="areaImpresionGlobal">
+    <h2 style="text-align:center; margin-bottom:10px;">Listado de Lotes Seleccionados</h2>
+    <p id="totalizadorImpresionLotes" style="margin-bottom:15px; font-weight:bold;"></p>
+    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f2f2f2;">
+          <th>Padrón</th>
+          <th>Titular</th>
+          <th>Ubicación</th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoTablaImpresion"></tbody>
+    </table>
+  </div>
 
-        <!-- ENLACE A LAS BOLETAS -->
-        <a href="https://rufino.miportal.ar/inicioWeb" target="_blank" class="btn-leyenda-boletas">
-            🎟️ Tus boletas aquí
-        </a>
-    </div>
+  <!-- LEAFLET JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- FICHA TÉCNICA DEL LOTE SELECCIONADO -->
-    <div id="panelFichaFlotante" class="panel-ficha-flotante no-print" style="display:none;">
-        <div class="cabecera-ficha">
-            <span>📋 Detalles del Terreno</span>
-            <button onclick="cerrarFicha()">❌</button>
-        </div>
-        <div id="cuerpoFichaContenido" class="cuerpo-ficha"></div>
-    </div>
+  <!-- CHART.JS + PLUGIN DATALABELS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Script principal -->
-    <script src="script.js"></script>
+  <!-- CÓDIGO JS PRINCIPAL -->
+  <script src="script.js"></script>
 </body>
 </html>
