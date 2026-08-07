@@ -615,7 +615,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 11. FICHA TÉCNICA FLOTANTE (CORREGIDA)
+// 11. FICHA TÉCNICA FLOTANTE (SIN REPETICIONES)
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
@@ -625,7 +625,7 @@ function mostrarFicha(p) {
   const d = limpiarMontoDeuda(p);
   const m = parseInt(buscarProp(p, "Meses Adeud.TGI")) || 0;
 
-  // Encabezado solo con el Estado del TGI
+  // Estado del TGI
   const est = esMuni 
     ? '<span style="color:#2980b9; font-weight:bold;">EXENTO</span>' 
     : ((d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA');
@@ -633,17 +633,14 @@ function mostrarFicha(p) {
   let html = `<p><span class="etiqueta">Estado TGI:</span> <span class="valor">${est}</span></p>
               <hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">`;
 
-  // Recorremos las propiedades evitando llaves internas/geométricas
   for (let k in p) {
     const clavePrevia = normalizarTexto(k);
     if (clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia") {
       let valorMostrar = p[k];
       
-      // Formatear montos de deuda
       if (clavePrevia === "deuda tgi" || clavePrevia === "deuda obra") {
         valorMostrar = esMuni ? "Exento" : formatearMoneda(valorMostrar);
       }
-      
       html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${valorMostrar || '-'}</span></p>`;
     }
   }
@@ -651,6 +648,11 @@ function mostrarFicha(p) {
   panelFlotante.style.display = "flex";
   cuerpoFlotante.innerHTML = html;
 }
+
+window.cerrarFicha = () => {
+  document.getElementById('panelFichaFlotante').style.display = "none";
+  limpiarMedidasLote();
+};
 
 // ==========================================
 // 12. DESPLEGABLES (SECCIONES Y OBRAS)
