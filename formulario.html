@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Declaración Jurada del Empleado</title>
+  <link rel="stylesheet" href="estilo.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- BARRAS DE CONTROL Y NAVEGACIÓN (CON FILTRO DE AÑO) -->
+  <div class="control-bar no-print">
+    <div class="control-group">
+      <a href="index.html" class="btn-secondary" style="text-decoration: none; padding: 8px 14px; border-radius: 6px;">🏠 Inicio</a>
+      <button class="btn-secondary" onclick="abrirModalListado()">📜 Presentaciones</button>
+      <button class="btn-secondary" onclick="abrirModalPendientes()" style="background-color: #eab308 !important; color: #1e293b !important; border-color: #ca8a04 !important;">⚠️ Falta Presentar</button>
+    </div>
+
+    <!-- FILTRO POR AÑO -->
+    <div class="control-group">
+      <label for="selectorAnio"><strong>Año:</strong></label>
+      <select id="selectorAnio" onchange="filtrarPorAnio(this.value)">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+
+    <!-- AGENTES FILTRADOS -->
+    <div class="control-group">
+      <label for="selectorFilas"><strong>Agente:</strong></label>
+      <select id="selectorFilas" onchange="irAFila(this.value)">
+        <option value="">Cargando datos...</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <button id="btnPrev" onclick="navegar(-1)">◀ Ant.</button>
+      <span id="contador" class="counter-badge">0 de 0</span>
+      <button id="btnNext" onclick="navegar(1)">Sig. ▶</button>
+    </div>
+
+    <button class="btn-primary" onclick="window.print()">🖨️ Imprimir DDJJ</button>
+  </div>
+
+  <!-- HOJA TAMAÑO A4 COMPACTA -->
+  <div class="a4-page" id="formularioFicha">
+    
+    <!-- ENCABEZADO CON LOGO Y TÍTULOS -->
+    <div class="doc-header">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <img src="logo.png" alt="Escudo Municipal" style="max-height: 48px; width: auto; object-fit: contain;">
+        <div>
+          <h1>DECLARACIÓN JURADA DE PERSONAL MUNICIPAL</h1>
+          <div class="subtitle">Actualización Integral de Datos Personales, Familiares y Derechohabientes</div>
+        </div>
+      </div>
+      
+      <div style="text-align: right; font-size: 11px; white-space: nowrap;">
+        <div><strong>LEGAJO N°:</strong> <span id="val-legajo" style="color: #1e3a8a; font-weight: bold;">-</span></div>
+        <div style="font-size: 9px; color: #64748b;"><strong>FECHA:</strong> <span id="val-fecha-realizacion">-</span></div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 1: DATOS PERSONALES Y LABORALES -->
+    <div class="section-block">
+      <div class="section-title">1. Datos Personales y Laborales</div>
+      
+      <div class="form-grid cols-3">
+        <div class="field" style="grid-column: span 2;">
+          <label>Apellido y Nombre</label>
+          <div id="val-nombre" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>DNI N°</label>
+          <div id="val-dni" class="box">-</div>
+        </div>
+      </div>
+
+      <div class="form-grid cols-4">
+        <div class="field">
+          <label>Fecha Nacimiento</label>
+          <div id="val-nacimiento" class="box">-</div>
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label>Domicilio Actual</label>
+          <div id="val-domicilio" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Lugar / Localidad</label>
+          <div id="val-lugar" class="box">-</div>
+        </div>
+      </div>
+
+      <div class="form-grid cols-3">
+        <div class="field">
+          <label>Teléfono Contacto</label>
+          <div id="val-tel" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Estado Civil</label>
+          <div id="val-estado-civil" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Estudios Cursados</label>
+          <div id="val-estudios" class="box">-</div>
+        </div>
+      </div>
+
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Título Obtenido</label>
+          <div id="val-titulo" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Enfermedad / Patología Crónica</label>
+          <div id="val-enfermedad" class="box">-</div>
+        </div>
+      </div>
+
+      <div class="form-grid cols-4">
+        <div class="field" style="grid-column: span 2;">
+          <label>Lugar de Trabajo</label>
+          <div id="val-lugar-trabajo" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Actividad / Función</label>
+          <div id="val-actividad" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Fecha Ingreso</label>
+          <div id="val-ingreso" class="box">-</div>
+        </div>
+      </div>
+
+      <div class="form-grid cols-4">
+        <div class="field">
+          <label>Talle Camisa</label>
+          <div id="val-talle-camisa" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Talle Remera</label>
+          <div id="val-talle-remera" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Talle Pantalón</label>
+          <div id="val-talle-pantalon" class="box">-</div>
+        </div>
+        <div class="field">
+          <label>Talle Calzado</label>
+          <div id="val-talle-calzado" class="box">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: CÓNYUGE -->
+    <div class="section-block">
+      <div class="section-title">2. Datos del Cónyuge / Conviviente</div>
+      <div id="contenedor-conyuge"></div>
+    </div>
+
+    <!-- SECCIÓN 3: HIJOS -->
+    <div class="section-block">
+      <div class="section-title">3. Hijos / Cargas de Familia</div>
+      <div id="contenedor-hijos"></div>
+    </div>
+
+    <!-- SECCIÓN 4: DERECHOHABIENTES -->
+    <div class="section-block">
+      <div class="section-title">4. Derechohabientes</div>
+      <div id="contenedor-derechohabientes"></div>
+    </div>
+
+    <!-- DECLARACIÓN Y FIRMA -->
+    <div style="font-size: 8.5pt; color: #475569; margin-top: 10px; text-align: justify; font-style: italic; line-height: 1.2;">
+      Declaro bajo juramento que los datos consignados en esta presentación son correctos, exactos y completos, asumiendo el compromiso de comunicar formalmente cualquier modificación que se produzca en los mismos.
+    </div>
+
+    <div class="signature-section">
+      <div class="signature-grid">
+        <div>
+          <p style="font-size: 9px; margin-bottom: 2px;"><strong>Firmante:</strong> <span id="sig-nombre">-</span></p>
+          <p style="font-size: 9px; margin-bottom: 2px;"><strong>DNI N°:</strong> <span id="sig-dni">-</span></p>
+          <p style="font-size: 9px; margin-bottom: 2px;"><strong>Fecha:</strong> <span id="sig-fecha">-</span></p>
+          <p style="font-size: 8px; color: #166534; font-weight: bold; margin-top: 4px;">✔ REGISTRADO Y FIRMADO DIGITALMENTE</p>
+        </div>
+        <div>
+          <p style="font-size: 8px; font-weight: bold; color: #475569; margin-bottom: 2px;">ID Transacción / Hash:</p>
+          <div id="sig-id" style="font-size: 8px; font-weight: bold; color: #1e3a8a;">-</div>
+          <div id="sig-hash" class="digital-hash">-</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL LISTADO PRESENTACIONES -->
+  <div id="modalListado" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📜 Listado de Declaraciones Presentadas</h3>
+        <div>
+          <button class="btn-secondary" onclick="imprimirTablaModal()" style="font-size: 12px;">🖨️ Imprimir PDF</button>
+          <button onclick="cerrarModalListado()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer; margin-left: 10px;">✖</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <table class="modal-table">
+          <thead>
+            <tr id="encabezadoTablaModal"></tr>
+          </thead>
+          <tbody id="cuerpoTablaModal"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PENDIENTES -->
+  <div id="modalPendientes" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #854d0e;">
+        <h3>⚠️ Agentes Pendientes de Presentación</h3>
+        <div>
+          <button onclick="cerrarModalPendientes()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer;">✖</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="resumenPendientes" style="margin-bottom: 12px; font-weight: bold; font-size: 12px; color: #334155;"></div>
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Legajo</th>
+              <th>Nombre y Apellido</th>
+              <th>DNI</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaPendientes"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
