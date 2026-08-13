@@ -8,7 +8,6 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <!-- Estilos del Sistema -->
   <style>
     * {
       box-sizing: border-box;
@@ -19,13 +18,90 @@
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
+      flex-direction: column;
       height: 100vh;
       overflow: hidden;
       background-color: #f4f6f9;
       color: #333;
     }
 
-    /* BARRA LATERAL (PANEL) */
+    /* BARRA SUPERIOR */
+    .barra-superior {
+      height: 55px;
+      background: #1a252f;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      z-index: 1001;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .logo-titulo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-titulo h1 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .controles-rapidos {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-barra {
+      background: #34495e;
+      color: white;
+      border: 1px solid #455a64;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-barra:hover {
+      background: #455a64;
+    }
+
+    .btn-barra.activo {
+      background: #2980b9;
+      border-color: #3498db;
+    }
+
+    /* BOTÓN ESTILO AMARILLO FLÚOR */
+    .btn-amarillo-fluor {
+      background-color: #ffff00 !important;
+      color: #000000 !important;
+      font-weight: 700 !important;
+      border: 2px solid #cccc00 !important;
+      box-shadow: 0 0 10px rgba(255, 255, 0, 0.6);
+      transition: all 0.2s ease-in-out !important;
+    }
+
+    .btn-amarillo-fluor:hover {
+      background-color: #ffff66 !important;
+      box-shadow: 0 0 16px rgba(255, 255, 0, 0.95);
+      transform: scale(1.03);
+    }
+
+    /* CONTENEDOR PRINCIPAL */
+    .contenedor-principal {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 55px);
+      position: relative;
+    }
+
+    /* PANEL LATERAL */
     #panelLateral {
       width: 340px;
       background: #ffffff;
@@ -60,7 +136,6 @@
       flex: 1;
     }
 
-    /* BOTONES Y HERRAMIENTAS BARRA SUPERIOR */
     .barra-herramientas {
       display: flex;
       flex-direction: column;
@@ -143,7 +218,6 @@
       display: block;
     }
 
-    /* INPUTS Y SELECTS */
     input[type="text"], select {
       width: 100%;
       padding: 8px 10px;
@@ -158,7 +232,6 @@
       border-color: #3498db;
     }
 
-    /* LISTA SUGERENCIAS BÚSQUEDA */
     .contenedor-sugerencias {
       position: relative;
     }
@@ -172,51 +245,43 @@
       background: white;
       border: 1px solid #cbd5e1;
       border-radius: 0 0 4px 4px;
-      max-height: 180px;
+      max-height: 220px;
       overflow-y: auto;
       z-index: 2000;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
     .item-sugerencia {
       padding: 8px 10px;
       font-size: 12px;
+      color: #333;
       cursor: pointer;
       border-bottom: 1px solid #f1f5f9;
     }
 
     .item-sugerencia:hover {
-      background: #f8fafc;
+      background: #e2e8f0;
     }
 
-    /* PANELES DE GRÁFICOS Y ESTADÍSTICAS */
-    .panel-grafico-contenedor {
-      background: #ffffff;
+    /* BARRAS Y CAJAS INFORMATIVAS */
+    #panelSeleccionMultiple {
+      display: none;
+      background: #e8f8f5;
+      border: 1px solid #1abc9c;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-info {
+      background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 25px 10px 10px 10px;
+      padding: 10px;
       margin-top: 10px;
-      position: relative;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
-    .btn-cerrar-grafico {
-      position: absolute;
-      top: 4px;
-      right: 6px;
-      background: transparent;
-      border: none;
-      font-weight: bold;
-      color: #64748b;
-      cursor: pointer;
-      font-size: 14px;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-
-    .btn-cerrar-grafico:hover {
-      background-color: #ef4444;
-      color: #ffffff;
     }
 
     .barra-progreso {
@@ -224,11 +289,13 @@
       background: #e2e8f0;
       border-radius: 4px;
       overflow: hidden;
-      margin: 4px 0 8px 0;
+      margin-top: 4px;
+      margin-bottom: 8px;
     }
 
     .progreso-llenado {
       height: 100%;
+      width: 0%;
       transition: width 0.3s;
     }
 
@@ -245,23 +312,22 @@
       z-index: 1;
     }
 
-    /* BOTÓN TOGGLE PANEL LATERAL */
     .btn-toggle-panel {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      z-index: 1001;
       background: #2c3e50;
       color: white;
       border: none;
-      padding: 8px 12px;
+      padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
       font-weight: bold;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      font-size: 14px;
     }
 
-    /* FICHA TÉCNICA FLOTANTE */
+    .btn-toggle-panel:hover {
+      background: #34495e;
+    }
+
+    /* FICHA FLOTANTE */
     #panelFichaFlotante {
       display: none;
       position: absolute;
@@ -303,176 +369,199 @@
 
     .cuerpo-ficha .etiqueta {
       color: #64748b;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .cuerpo-ficha .valor {
-      font-weight: 600;
-      color: #1e293b;
-      text-align: right;
+      font-weight: bold;
+      color: #2c3e50;
     }
 
-    .cuerpo-ficha .deuda { color: #ef4444; font-weight: bold; }
-    .cuerpo-ficha .vencer { color: #f59e0b; font-weight: bold; }
-
-    /* TOOLTIP DE MEDIDAS DE LOTE */
     .etiqueta-medida-lote {
-      background: rgba(0, 0, 0, 0.75) !important;
-      border: none !important;
-      color: #ffffff !important;
-      font-weight: bold !important;
-      font-size: 10px !important;
-      padding: 1px 4px !important;
-      border-radius: 3px !important;
-      box-shadow: none !important;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid #ffff00;
+      color: #ffff00;
+      font-weight: bold;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 3px;
     }
 
-    /* ÁREA DE IMPRESIÓN OCULTA */
-    #areaImpresionGlobal {
-      display: none;
-    }
-
-    @media print {
-      body * { visibility: hidden; }
-      #areaImpresionGlobal, #areaImpresionGlobal * { visibility: visible; }
-      #areaImpresionGlobal { display: block; position: absolute; left: 0; top: 0; width: 100%; }
-    }
+    .deuda { color: #e74c3c; font-weight: bold; }
+    .vencer { color: #f39c12; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <!-- Botón alternar visibilidad panel -->
-  <button class="btn-toggle-panel" onclick="togglePanelLateral()">☰ Menú</button>
-
-  <!-- PANEL LATERAL -->
-  <div id="panelLateral">
-    <div class="header-panel">
-      <h2>Catastro TGI Rufino</h2>
+  <!-- BARRA SUPERIOR -->
+  <div class="barra-superior">
+    <div class="logo-titulo">
+      <button class="btn-toggle-panel" onclick="togglePanelLateral()">☰</button>
+      <h1>Catastro TGI Rufino</h1>
     </div>
 
-    <div class="contenido-panel">
-
-      <!-- BARRA DE HERRAMIENTAS Y RENDERIZADO -->
-      <div class="barra-herramientas">
-        <button id="btnToggleTGI" class="btn-tool activo">🗺️ Mapa Catastral TGI: ON</button>
-        <button id="btnToggleBaldios" class="btn-tool">⬜ Resaltar Baldíos: APAGADO</button>
-        <button id="btnToggleMuni" class="btn-tool">🏛️ Prop. Municipalidad: OFF</button>
-        <button id="btnToggleSatelite" class="btn-tool">🛰️ Satelital: APAGADO</button>
-        <button id="btnToggleSeleccion" class="btn-tool">🔲 Selección Múltiple: OFF</button>
+    <!-- BUSCADOR SUPERIOR -->
+    <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+      <label for="inputBarraBusqueda" style="font-size: 12px; font-weight: bold; color: #ecf0f1; white-space: nowrap;">
+        🔍 Buscar Titular / Padrón:
+      </label>
+      <div style="position: relative; width: 280px;">
+        <input 
+          type="text" 
+          id="inputBarraBusqueda" 
+          placeholder="Ingrese Apellido, Nombre o Padrón..." 
+          autocomplete="off" 
+          style="margin:0; background:#2c3e50; color:#fff; border: 1px solid #455a64; padding: 6px 10px; border-radius: 4px; width: 100%;" 
+          oninput="ejecutarBusquedaBarra(this.value)" 
+        />
+        <div id="listaSugerenciasBarra" class="lista-sugerencias"></div>
       </div>
+    </div>
 
-      <!-- PANEL CONTADOR BALDÍOS -->
-      <div id="totalizadorBaldios" style="display:none; background:#e8f8f5; border:1px solid #2ecc71; padding:8px; border-radius:5px; margin-bottom:10px; font-size:12px; color:#27ae60;">
-        🍃 Total Terrenos Baldíos: <strong id="numBaldios">0</strong>
-      </div>
-
-      <!-- PANEL SELECCIÓN MÚLTIPLE -->
-      <div id="panelSeleccionMultiple" style="display:none; flex-direction:column; gap:5px; background:#f0fdf4; border:1px solid #bbf7d0; padding:10px; border-radius:5px; margin-bottom:10px; font-size:12px;">
-        <span>Lotes Seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
-        <button class="btn-accion" style="padding:6px; font-size:11px;" onclick="imprimirLotesSeleccionados()">🖨️ Imprimir Lista Seleccionados</button>
-      </div>
-
-      <!-- BUSCADOR TITULAR / PADRÓN -->
-      <div class="grupo-acordeon" id="grupoBuscador">
-        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoBuscador')">
-          <span>🔍 Buscar Titular / Padrón</span>
-          <span class="icono-acordeon">►</span>
-        </div>
-        <div class="cuerpo-acordeon">
-          <div class="contenedor-sugerencias">
-            <input type="text" id="inputApellido" placeholder="Ej: Perez o Padrón 1234..." autocomplete="off" />
-            <div id="listaSugerencias" class="lista-sugerencias"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- BUSCADOR POR CALLE -->
-      <div class="grupo-acordeon" id="grupoCalle">
-        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoCalle')">
-          <span>🛣️ Buscar por Calle</span>
-          <span class="icono-acordeon">►</span>
-        </div>
-        <div class="cuerpo-acordeon">
-          <div class="contenedor-sugerencias">
-            <input type="text" id="inputCalle" placeholder="Nombre de la calle..." autocomplete="off" />
-            <div id="listaSugerenciasCalle" class="lista-sugerencias"></div>
-          </div>
-
-          <!-- PANEL ESTADÍSTICA CALLE CON BOTÓN CERRAR -->
-          <div id="panelEstadisticaCalle" class="panel-grafico-contenedor" style="display:none;">
-            <button onclick="ocultarContenedorGraficoCalle()" class="btn-cerrar-grafico" title="Cerrar">✕</button>
-            <div id="statsCalleContenido"></div>
-            <div style="height: 120px; position: relative; margin-top: 8px;">
-              <canvas id="graficoCalle"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- FILTRO SECCIONES -->
-      <div class="grupo-acordeon" id="grupoSeccion">
-        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoSeccion')">
-          <span>🧱 Filtrar por Sección</span>
-          <span class="icono-acordeon">►</span>
-        </div>
-        <div class="cuerpo-acordeon">
-          <select id="selectSeccion">
-            <option value="">🧱 Seleccionar Sección...</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- FILTRO OBRAS PÚBLICAS -->
-      <div class="grupo-acordeon" id="grupoObra">
-        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoObra')">
-          <span>🚧 Obras Públicas</span>
-          <span class="icono-acordeon">►</span>
-        </div>
-        <div class="cuerpo-acordeon">
-          <select id="selectObra">
-            <option value="">🚧 Seleccionar Obra...</option>
-          </select>
-
-          <!-- PANEL ESTADÍSTICA OBRA CON BOTÓN CERRAR -->
-          <div id="panelEstadisticaObra" class="panel-grafico-contenedor" style="display:none;">
-            <button onclick="ocultarContenedorGraficoObra()" class="btn-cerrar-grafico" title="Cerrar">✕</button>
-            <div id="statsObraContenido"></div>
-            <div style="height: 120px; position: relative; margin-top: 8px;">
-              <canvas id="graficoObra"></canvas>
-            </div>
-            <button id="btnImprimirObra" class="btn-accion" style="display:none; margin-top:8px; font-size:11px; padding:6px;">🖨️ Imprimir Informe Obra</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- INFORMES MUNICIPALES -->
-      <div class="grupo-acordeon" id="grupoInformes">
-        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoInformes')">
-          <span>🏛️ Informes Generales</span>
-          <span class="icono-acordeon">►</span>
-        </div>
-        <div class="cuerpo-acordeon">
-          <button class="btn-accion" style="background:#2980b9;" onclick="imprimirLotesMunicipales()">📄 Exportar Lotes Municipales</button>
-          <button class="btn-accion" style="background:#8e44ad;" onclick="solicitarGraficoGeneral()">📊 Ver Gráfico Deuda General</button>
-        </div>
-      </div>
-
-      <!-- GRÁFICO DEUDA GENERAL TGI CON BOTÓN CERRAR -->
-      <div id="contenedorGraficoGeneral" class="panel-grafico-contenedor" style="display:none;">
-        <button onclick="ocultarContenedorGraficoGeneral()" class="btn-cerrar-grafico" title="Cerrar Gráfico">✕</button>
-        <h4 style="margin: 0 0 10px 0; font-size: 12px; text-align: center; color: #2c3e50;">Estado Deuda TGI General</h4>
-        <div style="height: 180px; position: relative;">
-          <canvas id="graficoBarras"></canvas>
-        </div>
-      </div>
-
+    <!-- CONTROLES RÁPIDOS SUPERIORES -->
+    <div class="controles-rapidos">
+      <button id="btnToggleTGI" class="btn-barra activo">🗺️ TGI</button>
+      <button id="btnToggleSatelite" class="btn-barra">🛰️ Satelital</button>
+      <button id="btnToggleMuni" class="btn-barra">🏛️ Muni</button>
+      <button id="btnSeleccionarSinDatosBarra" class="btn-barra btn-amarillo-fluor">
+        ⚠️ Sin Datos: APAGADO
+      </button>
     </div>
   </div>
 
-  <!-- MAPA PRINCIPAL -->
-  <div id="map"></div>
+  <!-- CONTENEDOR PRINCIPAL -->
+  <div class="contenedor-principal">
 
-  <!-- PANEL FICHA FLOTANTE -->
+    <!-- PANEL LATERAL -->
+    <div id="panelLateral">
+      <div class="header-panel">
+        <h2>Herramientas y Filtros</h2>
+      </div>
+
+      <div class="contenido-panel">
+        <!-- BOTONES PRINCIPALES -->
+        <div class="barra-herramientas">
+          <button id="btnToggleBaldios" class="btn-tool">⬜ Resaltar Baldíos: APAGADO</button>
+          <button id="btnSeleccionarSinDatos" class="btn-tool btn-amarillo-fluor">⚠️ Sin Datos: APAGADO</button>
+          <button id="btnToggleSeleccion" class="btn-tool">🔲 Selección Múltiple: OFF</button>
+        </div>
+
+        <!-- PANEL INFORMATIVO DE SELECCIÓN MÚLTIPLE -->
+        <div id="panelSeleccionMultiple">
+          <span>Seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
+          <button class="btn-barra" style="padding: 2px 6px; font-size: 10px;" onclick="imprimirLotesSeleccionados()">🖨️ Imprimir</button>
+        </div>
+
+        <!-- TOTALIZADORES -->
+        <div id="totalizadorBaldios" class="panel-info" style="display: none; background: #eef9f1; border-color: #2ecc71;">
+          <p style="font-size: 12px; margin: 0; color: #27ae60; font-weight: bold;">
+            🌱 Terrenos Baldíos: <span id="numBaldios">0</span>
+          </p>
+        </div>
+
+        <div id="totalizadorSinDatos" class="panel-info" style="display: none; background: #ffffea; border-color: #cccc00;">
+          <p style="font-size: 12px; margin: 0; color: #999900; font-weight: bold;">
+            ⚠️ Lotes Sin Datos: <span id="numSinDatos">0</span>
+          </p>
+        </div>
+
+        <!-- 1. ACORDEÓN: TITULAR / PADRÓN -->
+        <div class="grupo-acordeon" id="grupoApellido">
+          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoApellido')">
+            <span>👤 Buscar por Titular / Padrón</span>
+            <span class="icono-acordeon">►</span>
+          </div>
+          <div class="cuerpo-acordeon">
+            <div class="contenedor-sugerencias">
+              <input type="text" id="inputApellido" placeholder="Ej: Perez, Juan o Padrón..." autocomplete="off" />
+              <div id="listaSugerencias" class="lista-sugerencias"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. ACORDEÓN: CALLE -->
+        <div class="grupo-acordeon" id="grupoCalle">
+          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoCalle')">
+            <span>KM Buscar por Calle</span>
+            <span class="icono-acordeon">►</span>
+          </div>
+          <div class="cuerpo-acordeon">
+            <div class="contenedor-sugerencias">
+              <input type="text" id="inputCalle" placeholder="Nombre de la calle..." autocomplete="off" />
+              <div id="listaSugerenciasCalle" class="lista-sugerencias"></div>
+            </div>
+            
+            <!-- PANEL ESTADÍSTICA CALLE -->
+            <div id="panelEstadisticaCalle" class="panel-info" style="display: none;">
+              <div id="statsCalleContenido"></div>
+              <div style="height: 120px; position: relative; margin-top: 8px;">
+                <canvas id="graficoCalle"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. ACORDEÓN: SECCIÓN -->
+        <div class="grupo-acordeon" id="grupoSeccion">
+          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoSeccion')">
+            <span>🧱 Filtrar por Sección</span>
+            <span class="icono-acordeon">►</span>
+          </div>
+          <div class="cuerpo-acordeon">
+            <select id="selectSeccion">
+              <option value="">🧱 Seleccionar Sección...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 4. ACORDEÓN: OBRAS PÚBLICAS -->
+        <div class="grupo-acordeon" id="grupoObra">
+          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoObra')">
+            <span>🚧 Obras Públicas</span>
+            <span class="icono-acordeon">►</span>
+          </div>
+          <div class="cuerpo-acordeon">
+            <select id="selectObra">
+              <option value="">🚧 Seleccionar Obra...</option>
+            </select>
+
+            <!-- PANEL ESTADÍSTICA OBRA -->
+            <div id="panelEstadisticaObra" class="panel-info" style="display: none;">
+              <div id="statsObraContenido"></div>
+              <div style="height: 120px; position: relative; margin-top: 8px;">
+                <canvas id="graficoObra"></canvas>
+              </div>
+              <button id="btnImprimirObra" class="btn-accion" style="display: none; font-size: 11px; padding: 6px;">
+                🖨️ Imprimir Informe Obra
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. ESTADÍSTICA GENERAL -->
+        <div style="margin-top: 15px;">
+          <button class="btn-tool" onclick="solicitarGraficoGeneral()">📊 Graficar Estado General</button>
+          <div id="contenedorGraficoGeneral" class="panel-info" style="display: none;">
+            <div style="height: 150px; position: relative;">
+              <canvas id="graficoBarras"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTÓN IMPRIMIR MUNI -->
+        <button class="btn-accion" style="background:#2980b9;" onclick="imprimirLotesMunicipales()">
+          🏛️ Imprimir Terrenos Muni
+        </button>
+
+      </div>
+    </div>
+
+    <!-- MAPA PRINCIPAL -->
+    <div id="map"></div>
+
+  </div>
+
+  <!-- FICHA FLOTANTE -->
   <div id="panelFichaFlotante">
     <div class="cabecera-ficha">
       <span>Ficha Catastral</span>
@@ -481,30 +570,10 @@
     <div id="cuerpoFichaContenido" class="cuerpo-ficha"></div>
   </div>
 
-  <!-- VISTA OCULTA PARA IMPRESIÓN MÚLTIPLE -->
-  <div id="areaImpresionGlobal">
-    <h2 style="text-align:center; margin-bottom:10px;">Listado de Lotes Seleccionados</h2>
-    <p id="totalizadorImpresionLotes" style="margin-bottom:15px; font-weight:bold;"></p>
-    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse;">
-      <thead>
-        <tr style="background:#f2f2f2;">
-          <th>Padrón</th>
-          <th>Titular</th>
-          <th>Ubicación</th>
-        </tr>
-      </thead>
-      <tbody id="cuerpoTablaImpresion"></tbody>
-    </table>
-  </div>
-
-  <!-- LEAFLET JS -->
+  <!-- LEAFLET JS Y CHART JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- CHART.JS + PLUGIN DATALABELS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-
-  <!-- CÓDIGO JS PRINCIPAL -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script src="script.js"></script>
 </body>
 </html>

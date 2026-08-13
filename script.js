@@ -1,7 +1,6 @@
 ﻿// ==========================================
 // 1. CONFIGURACIÓN Y MAPA BASE
 // ==========================================
-// Registro del plugin para mostrar valores dentro de los gráficos circulares
 if (typeof ChartDataLabels !== 'undefined') {
   Chart.register(ChartDataLabels);
 }
@@ -26,7 +25,7 @@ const map = L.map('map', {
 });
 
 // ==========================================
-// 2. ESTADO GLOBAL Y FORMATEADORES DE MONEDA
+// 2. ESTADO GLOBAL Y FORMATEADORES
 // ==========================================
 let datosTgi = null;
 let capaTgi = null;
@@ -38,8 +37,9 @@ let lotesObraActual = [];
 let nombreObraActual = "";
 let lineasLadosActuales = [];
 let mostrarBaldiosExclusivos = false;
+let mostrarSinDatosExclusivos = false;
 let mostrarSoloMuni = false;
-let mostrarCapaTgi = true; // Control de visibilidad de la capa TGI
+let mostrarCapaTgi = true;
 let listadoLotesFiltroActual = [];
 let loteSeleccionadoActual = null;
 
@@ -47,7 +47,6 @@ let loteSeleccionadoActual = null;
 let modoSeleccionMultiple = false;
 let lotesSeleccionadosMultiples = [];
 
-// Formateador base
 const formatterARS = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
@@ -61,10 +60,10 @@ function formatearMoneda(valor) {
 }
 
 // ==========================================
-// 3. FUNCIONES DE NORMALIZACIÓN Y CARACTERES
+// 3. FUNCIONES DE NORMALIZACIÓN Y AYUDA
 // ==========================================
 function normalizarTexto(texto) {
-  if (!texto) return "";
+  if (texto === null || texto === undefined) return "";
   return String(texto)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -85,6 +84,16 @@ function escaparHTML(texto) {
   return String(texto)
     .replace(/'/g, "\\'")
     .replace(/"/g, '&quot;');
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resaltarCoincidencia(texto, busqueda) {
+  if (!busqueda) return texto;
+  const regex = new RegExp(`(${escapeRegExp(busqueda)})`, 'gi');
+  return texto.replace(regex, '<mark style="background:#f1c40f;">$1</mark>');
 }
 
 // ==========================================
@@ -112,16 +121,27 @@ window.togglePanelLateral = function () {
   const panel = document.getElementById('panelLateral');
   if (panel) {
     panel.classList.toggle('oculto');
+    setTimeout(() => {
+      if (typeof map !== 'undefined' && map.invalidateSize) {
+        map.invalidateSize();
+      }
+    }, 300);
   }
 };
 
 // ==========================================
-// 5. PARSERS Y UTILERÍA
+// 5. UTILERÍA Y PROPIEDADES GEOJSON
 // ==========================================
 function buscarProp(obj, texto) {
   if (!obj) return "";
   const key = Object.keys(obj).find(k => normalizarTexto(k).includes(normalizarTexto(texto)));
   return key ? obj[key] : "";
+}
+
+function esLoteSinDatos(propiedades) {
+  const padron = normalizarTexto(buscarProp(propiedades, "Padron") || buscarProp(propiedades, "Contribuyente"));
+  const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre"));
+  return padron === "" && titular === "";
 }
 
 function esLoteMunicipal(propiedades) {
@@ -142,8 +162,6 @@ function limpiarMontoGenerico(valorTexto) {
     texto = texto.replace(/,/g, '');
   } else if (texto.includes(',')) {
     texto = texto.replace(/\./g, '').replace(',', '.');
-  } else if ((texto.match(/,/g) || []).length > 0) {
-    texto = texto.replace(/,/g, '');
   }
 
   const resultado = parseFloat(texto);
@@ -160,20 +178,12 @@ function limpiarMontoDeuda(propiedades) {
 // ==========================================
 function estiloManzanaPorSeccion(feature) {
   const seccion = String(buscarProp(feature.properties, "Seccion") || "0");
-  const colores = {
-    '1': '#3498db',
-    '2': '#2ecc71',
-    '3': '#9b59b6',
-    '4': '#e67e22',
-    '5': '#1abc9c'
-  };
+  const colores = { '1': '#3498db', '2': '#2ecc71', '3': '#9b59b6', '4': '#e67e22', '5': '#1abc9c' };
 
   let colorSeccion = colores[seccion];
   if (!colorSeccion) {
     let hash = 0;
-    for (let i = 0; i < seccion.length; i++) {
-      hash = seccion.charCodeAt(i) + ((hash << 5) - hash);
-    }
+    for (let i = 0; i < seccion.length; i++) hash = seccion.charCodeAt(i) + ((hash << 5) - hash);
     colorSeccion = `hsl(${Math.abs(hash) % 360}, 60%, 80%)`;
   }
 
@@ -181,22 +191,15 @@ function estiloManzanaPorSeccion(feature) {
 }
 
 function estiloLote(f) {
-  const padronVal = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente");
-  const estaSeleccionado = lotesSeleccionadosMultiples.some(l => 
-    (buscarProp(l.properties, "Padron") || buscarProp(l.properties, "Contribuyente")) === padronVal
-  );
-
-  if (estaSeleccionado) {
-    return { color: "#00ffff", fillColor: "#00ffff", weight: 3, fillOpacity: 0.5 };
-  }
-
-  const esMuni = esLoteMunicipal(f.properties);
-  if (mostrarSoloMuni) {
-    return esMuni 
-      ? { color: "#1b4f72", fillColor: "#2980b9", weight: 2.5, fillOpacity: 0.85 }
+  // 1. Si está activo el filtro exclusivo de "Sin Datos"
+  if (mostrarSinDatosExclusivos) {
+    const esSinD = esLoteSinDatos(f.properties);
+    return esSinD
+      ? { color: "#cccc00", fillColor: "#ffff00", weight: 3, fillOpacity: 0.95 }
       : { color: "#ccc", fillColor: "transparent", weight: 0.5, fillOpacity: 0 };
   }
 
+  // 2. Si está activo el filtro exclusivo de Baldíos
   const bField = f.properties.Baldio;
   const esBaldio = bField !== null && bField !== undefined && normalizarTexto(bField) === "s";
 
@@ -206,10 +209,25 @@ function estiloLote(f) {
       : { color: "#ccc", fillColor: "transparent", weight: 0.5, fillOpacity: 0 };
   }
 
+  // 3. Selección manual múltiple
+  const estaSeleccionado = lotesSeleccionadosMultiples.includes(f);
+  if (estaSeleccionado) {
+    return { color: "#ffff00", fillColor: "#ffff00", weight: 3.5, fillOpacity: 0.85 };
+  }
+
+  // 4. Filtro solo municipal
+  const esMuni = esLoteMunicipal(f.properties);
+  if (mostrarSoloMuni) {
+    return esMuni 
+      ? { color: "#1b4f72", fillColor: "#2980b9", weight: 2.5, fillOpacity: 0.85 }
+      : { color: "#ccc", fillColor: "transparent", weight: 0.5, fillOpacity: 0 };
+  }
+
   if (esMuni) {
     return { color: "#1b4f72", fillColor: "#2980b9", weight: 1.5, fillOpacity: 0.6 };
   }
 
+  // 5. Visualización normal de obras / TGI
   if (!nombreObraActual) {
     const deu = limpiarMontoDeuda(f.properties);
     const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
@@ -231,7 +249,7 @@ function estiloLote(f) {
 }
 
 // ==========================================
-// 7. CARGA Y DESPLIEGUE EN MAPA
+// 7. CARGA DE DATOS Y MAPA
 // ==========================================
 async function cargarDatos() {
   try {
@@ -309,7 +327,7 @@ function dibujarMapa(features) {
 }
 
 // ==========================================
-// 8. CÁLCULO DE MEDIDAS DE LADOS
+// 8. MEDIDAS Y DISTANCIAS
 // ==========================================
 function unificarPuntosColineales(puntos) {
   if (puntos.length <= 3) return puntos;
@@ -317,12 +335,7 @@ function unificarPuntosColineales(puntos) {
   const latPromedio = puntos.reduce((acc, p) => acc + p.lat, 0) / puntos.length;
   const cosLat = Math.cos((latPromedio * Math.PI) / 180);
 
-  let pts = puntos.map(p => ({
-    x: p.lng * cosLat,
-    y: p.lat,
-    original: p
-  }));
-
+  let pts = puntos.map(p => ({ x: p.lng * cosLat, y: p.lat, original: p }));
   let huboCambios = true;
   let iteracionesMax = 5;
 
@@ -356,9 +369,7 @@ function unificarPuntosColineales(puntos) {
         simplificados.push(pCurr);
       }
     }
-    if (simplificados.length >= 3) {
-      pts = simplificados;
-    }
+    if (simplificados.length >= 3) pts = simplificados;
   }
 
   return pts.map(p => p.original);
@@ -410,13 +421,58 @@ function limpiarMedidasLote() {
 }
 
 // ==========================================
-// 9. INTERACCIONES Y BOTONES BARRA
+// 9. CONTROLES Y EVENTOS DE BOTONES
 // ==========================================
+function toggleModoSinDatos() {
+  mostrarSinDatosExclusivos = !mostrarSinDatosExclusivos;
+
+  // Si activamos este modo, desactivamos el de baldíos para evitar conflicto
+  if (mostrarSinDatosExclusivos) {
+    mostrarBaldiosExclusivos = false;
+    const btnB = document.getElementById('btnToggleBaldios');
+    if (btnB) {
+      btnB.innerHTML = "⬜ Resaltar Baldíos: APAGADO";
+      btnB.classList.remove('activo');
+    }
+    const panelBaldios = document.getElementById('totalizadorBaldios');
+    if (panelBaldios) panelBaldios.style.display = "none";
+  }
+
+  const btnP = document.getElementById('btnSeleccionarSinDatos');
+  const btnB = document.getElementById('btnSeleccionarSinDatosBarra');
+  const panelTotalizador = document.getElementById('totalizadorSinDatos');
+
+  const textoBtn = mostrarSinDatosExclusivos ? "⚠️ Sin Datos: PRENDIDO" : "⚠️ Sin Datos: APAGADO";
+
+  if (btnP) {
+    btnP.innerHTML = textoBtn;
+    btnP.classList.toggle('activo', mostrarSinDatosExclusivos);
+  }
+  if (btnB) {
+    btnB.innerHTML = textoBtn;
+    btnB.classList.toggle('activo', mostrarSinDatosExclusivos);
+  }
+
+  if (panelTotalizador) panelTotalizador.style.display = mostrarSinDatosExclusivos ? "block" : "none";
+
+  if (mostrarSinDatosExclusivos) {
+    calcularTotalSinDatos();
+  }
+
+  if (capaTgi) {
+    capaTgi.eachLayer(layer => capaTgi.resetStyle(layer));
+  }
+}
+
+function calcularTotalSinDatos() {
+  if (!datosTgi || !datosTgi.features) return;
+  const contador = datosTgi.features.filter(f => esLoteSinDatos(f.properties)).length;
+  const numS = document.getElementById('numSinDatos');
+  if (numS) numS.innerText = contador;
+}
+
 function toggleSeleccionLote(feature, layer) {
-  const padronVal = buscarProp(feature.properties, "Padron") || buscarProp(feature.properties, "Contribuyente");
-  const index = lotesSeleccionadosMultiples.findIndex(l => 
-    (buscarProp(l.properties, "Padron") || buscarProp(l.properties, "Contribuyente")) === padronVal
-  );
+  const index = lotesSeleccionadosMultiples.indexOf(feature);
 
   if (index >= 0) {
     lotesSeleccionadosMultiples.splice(index, 1);
@@ -425,7 +481,8 @@ function toggleSeleccionLote(feature, layer) {
   }
 
   if (capaTgi) capaTgi.resetStyle(layer);
-  document.getElementById('lblCantSeleccionados').innerText = lotesSeleccionadosMultiples.length;
+  const lbl = document.getElementById('lblCantSeleccionados');
+  if (lbl) lbl.innerText = lotesSeleccionadosMultiples.length;
 }
 
 function vincularBotonesBarra() {
@@ -435,11 +492,11 @@ function vincularBotonesBarra() {
       mostrarCapaTgi = !mostrarCapaTgi;
       if (mostrarCapaTgi) {
         if (capaTgi) map.addLayer(capaTgi);
-        btnTgi.innerHTML = "🗺️ Mapa Catastral TGI: ON";
+        btnTgi.innerHTML = "🗺️ TGI";
         btnTgi.classList.add('activo');
       } else {
         if (capaTgi) map.removeLayer(capaTgi);
-        btnTgi.innerHTML = "🗺️ Mapa Catastral TGI: OFF";
+        btnTgi.innerHTML = "🗺️ TGI (OFF)";
         btnTgi.classList.remove('activo');
       }
     };
@@ -451,6 +508,17 @@ function vincularBotonesBarra() {
   if (btnB) {
     btnB.onclick = function () {
       mostrarBaldiosExclusivos = !mostrarBaldiosExclusivos;
+
+      if (mostrarBaldiosExclusivos) {
+        mostrarSinDatosExclusivos = false;
+        const btnSD1 = document.getElementById('btnSeleccionarSinDatos');
+        const btnSD2 = document.getElementById('btnSeleccionarSinDatosBarra');
+        if (btnSD1) { btnSD1.innerHTML = "⚠️ Sin Datos: APAGADO"; btnSD1.classList.remove('activo'); }
+        if (btnSD2) { btnSD2.innerHTML = "⚠️ Sin Datos: APAGADO"; btnSD2.classList.remove('activo'); }
+        const panelSinD = document.getElementById('totalizadorSinDatos');
+        if (panelSinD) panelSinD.style.display = "none";
+      }
+
       btnB.innerHTML = mostrarBaldiosExclusivos ? "🟩 Resaltar Baldíos: PRENDIDO" : "⬜ Resaltar Baldíos: APAGADO";
       btnB.classList.toggle('activo', mostrarBaldiosExclusivos);
       if (panelTotalizador) panelTotalizador.style.display = mostrarBaldiosExclusivos ? "block" : "none";
@@ -464,7 +532,7 @@ function vincularBotonesBarra() {
   if (btnMuni) {
     btnMuni.onclick = function () {
       mostrarSoloMuni = !mostrarSoloMuni;
-      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Prop. Municipalidad: ON" : "🏛️ Prop. Municipalidad: OFF";
+      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Muni (ON)" : "🏛️ Muni";
       btnMuni.classList.toggle('activo', mostrarSoloMuni);
 
       if (capaTgi) capaTgi.eachLayer(layer => capaTgi.resetStyle(layer));
@@ -478,12 +546,12 @@ function vincularBotonesBarra() {
       if (sateliteActivo) {
         map.removeLayer(capaSatelital);
         map.addLayer(capaCalles);
-        btnS.innerHTML = "🛰️ Satelital: APAGADO";
+        btnS.innerHTML = "🛰️ Satelital";
         btnS.classList.remove('activo');
       } else {
         map.removeLayer(capaSatelital);
         map.addLayer(capaSatelital);
-        btnS.innerHTML = "🛰️ Satelital: PRENDIDO";
+        btnS.innerHTML = "🛰️ Satelital (ON)";
         btnS.classList.add('activo');
       }
     };
@@ -507,6 +575,12 @@ function vincularBotonesBarra() {
       }
     };
   }
+
+  const btnSinDatos = document.getElementById('btnSeleccionarSinDatos');
+  const btnSinDatosBarra = document.getElementById('btnSeleccionarSinDatosBarra');
+
+  if (btnSinDatos) btnSinDatos.onclick = toggleModoSinDatos;
+  if (btnSinDatosBarra) btnSinDatosBarra.onclick = toggleModoSinDatos;
 }
 
 function calcularTotalBaldios() {
@@ -520,20 +594,28 @@ function calcularTotalBaldios() {
 }
 
 // ==========================================
-// 10. BÚSQUEDA Y FILTROS INSENSIBLES A ACENTOS
+// 10. FILTROS Y BÚSQUEDA INSENSIBLE
 // ==========================================
 function filtrarTodo() {
-  const apellidoNorm = normalizarTexto(document.getElementById('inputApellido').value);
-  const calleInputNorm = normalizarTexto(document.getElementById('inputCalle').value);
+  const inputA = document.getElementById('inputApellido');
+  const inputC = document.getElementById('inputCalle');
+
+  const apellidoNorm = inputA ? normalizarTexto(inputA.value) : "";
+  const calleInputNorm = inputC ? normalizarTexto(inputC.value) : "";
 
   const sugApp = document.getElementById('listaSugerencias');
   const sugCalle = document.getElementById('listaSugerenciasCalle');
 
   limpiarMedidasLote();
   ocultarContenedorGraficoGeneral();
-  document.getElementById('selectSeccion').value = "";
-  document.getElementById('selectObra').value = "";
-  document.getElementById('panelEstadisticaObra').style.display = "none";
+  const selSec = document.getElementById('selectSeccion');
+  const selObr = document.getElementById('selectObra');
+  if (selSec) selSec.value = "";
+  if (selObr) selObr.value = "";
+  const panelObr = document.getElementById('panelEstadisticaObra');
+  if (panelObr) panelObr.style.display = "none";
+
+  if (!datosTgi || !datosTgi.features) return;
 
   listadoLotesFiltroActual = datosTgi.features.filter(f => {
     const nom = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
@@ -548,7 +630,7 @@ function filtrarTodo() {
     const callesLimpias = datosTgi.features.map(f => String(buscarProp(f.properties, "Ubicacion") || "").trim());
     const sugerenciasUnicas = [...new Set(callesLimpias)].filter(c => normalizarTexto(c).includes(calleInputNorm)).sort().slice(0, 8);
     const htmlC = sugerenciasUnicas.map(c => 
-      `<div class="item-sugerencia" onclick="seleccionarCalle('${escaparHTML(c)}')">🛣️ ${c}</div>`
+      `<div class="item-sugerencia" onclick="seleccionarCalle('${escaparHTML(c)}')">KM ${c}</div>`
     ).join('');
     if (sugCalle) { sugCalle.innerHTML = htmlC; sugCalle.style.display = htmlC ? "block" : "none"; }
   } else if (sugCalle) {
@@ -580,8 +662,10 @@ if (inputCal) inputCal.oninput = filtrarTodo;
 window.seleccionarCalle = function (nombreCalleLimpia) {
   limpiarMedidasLote();
   ocultarContenedorGraficoGeneral();
-  document.getElementById('inputCalle').value = nombreCalleLimpia;
-  document.getElementById('listaSugerenciasCalle').style.display = "none";
+  const inputC = document.getElementById('inputCalle');
+  if (inputC) inputC.value = nombreCalleLimpia;
+  const sugCalle = document.getElementById('listaSugerenciasCalle');
+  if (sugCalle) sugCalle.style.display = "none";
 
   const calleNorm = normalizarTexto(nombreCalleLimpia);
   listadoLotesFiltroActual = datosTgi.features.filter(f => 
@@ -589,7 +673,9 @@ window.seleccionarCalle = function (nombreCalleLimpia) {
   );
   dibujarMapa(listadoLotesFiltroActual);
 
-  if (capaTgi && capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [30, 30] });
+  if (capaTgi && capaTgi.getLayers().length > 0 && capaTgi.getBounds().isValid()) {
+    map.fitBounds(capaTgi.getBounds(), { padding: [30, 30] });
+  }
 
   window.toggleAcordeon('grupoCalle');
   generarEstadisticaCalle(listadoLotesFiltroActual, nombreCalleLimpia);
@@ -601,7 +687,9 @@ window.seleccionarLotePorPadron = function (padronVal) {
   );
 
   if (lote) {
-    document.getElementById('listaSugerencias').style.display = "none";
+    const sugApp = document.getElementById('listaSugerencias');
+    if (sugApp) sugApp.style.display = "none";
+
     mostrarFicha(lote.properties);
     if (capaTgi) {
       capaTgi.eachLayer(l => {
@@ -615,7 +703,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 11. FICHA TÉCNICA FLOTANTE (SIN REPETICIONES)
+// 11. FICHA TÉCNICA
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
@@ -625,7 +713,6 @@ function mostrarFicha(p) {
   const d = limpiarMontoDeuda(p);
   const m = parseInt(buscarProp(p, "Meses Adeud.TGI")) || 0;
 
-  // Estado del TGI
   const est = esMuni 
     ? '<span style="color:#2980b9; font-weight:bold;">EXENTO</span>' 
     : ((d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA');
@@ -637,7 +724,6 @@ function mostrarFicha(p) {
     const clavePrevia = normalizarTexto(k);
     if (clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia") {
       let valorMostrar = p[k];
-      
       if (clavePrevia === "deuda tgi" || clavePrevia === "deuda obra") {
         valorMostrar = esMuni ? "Exento" : formatearMoneda(valorMostrar);
       }
@@ -655,7 +741,7 @@ window.cerrarFicha = () => {
 };
 
 // ==========================================
-// 12. DESPLEGABLES (SECCIONES Y OBRAS)
+// 12. DESPLEGABLES SECCIONES Y OBRAS
 // ==========================================
 function inicializarDesplegableSecciones(features) {
   const select = document.getElementById('selectSeccion');
@@ -685,7 +771,9 @@ if (selectSec) {
 
     listadoLotesFiltroActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Seccion") || "").trim() === numSeccion);
     dibujarMapa(listadoLotesFiltroActual);
-    if (capaTgi && capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
+    if (capaTgi && capaTgi.getLayers().length > 0 && capaTgi.getBounds().isValid()) {
+      map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
+    }
   };
 }
 
@@ -726,7 +814,9 @@ if (selectObr) {
     dibujarMapa(lotesObraActual);
     generarEstadisticaObra(lotesObraActual, nombreObraActual);
 
-    if (capaTgi && capaTgi.getLayers().length > 0) map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
+    if (capaTgi && capaTgi.getLayers().length > 0 && capaTgi.getBounds().isValid()) {
+      map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
+    }
     if (btnImpObra) btnImpObra.style.display = "block";
   };
 }
@@ -734,35 +824,10 @@ if (selectObr) {
 // ==========================================
 // 13. ESTADÍSTICAS Y GRÁFICOS (CHART.JS)
 // ==========================================
-
-// Ocultar Gráfico General TGI
 window.ocultarContenedorGraficoGeneral = function() {
   const el = document.getElementById('contenedorGraficoGeneral');
   if (el) el.style.display = "none";
-  if (miGraficoG) { 
-    miGraficoG.destroy(); 
-    miGraficoG = null; 
-  }
-};
-
-// Ocultar Gráfico Estadística Calle
-window.ocultarContenedorGraficoCalle = function() {
-  const el = document.getElementById('panelEstadisticaCalle');
-  if (el) el.style.display = "none";
-  if (miGraficoC) { 
-    miGraficoC.destroy(); 
-    miGraficoC = null; 
-  }
-};
-
-// Ocultar Gráfico Estadística Obra
-window.ocultarContenedorGraficoObra = function() {
-  const el = document.getElementById('panelEstadisticaObra');
-  if (el) el.style.display = "none";
-  if (miGraficoO) { 
-    miGraficoO.destroy(); 
-    miGraficoO = null; 
-  }
+  if (miGraficoG) { miGraficoG.destroy(); miGraficoG = null; }
 };
 
 window.solicitarGraficoGeneral = function () {
@@ -928,13 +993,8 @@ function generarEstadisticaObra(features, textObra) {
 }
 
 // ==========================================
-// 14. IMPRESIÓN Y MODALES (CON META UTF-8)
+// 14. IMPRESIÓN Y INFORMES
 // ==========================================
-window.cerrarModalObra = function () {
-  const m = document.getElementById('modalPrevisualizacion');
-  if (m) m.style.display = 'none';
-};
-
 window.imprimirObraDirecta = function () {
   if (!lotesObraActual || lotesObraActual.length === 0) return alert("Seleccione primero una obra válida.");
 
@@ -954,6 +1014,8 @@ window.imprimirObraDirecta = function () {
   }).join('');
 
   const ventana = window.open('', '_blank', 'height=600,width=850');
+  if (!ventana) return alert("Por favor, permite las ventanas emergentes para imprimir.");
+
   ventana.document.write(`
     <!DOCTYPE html>
     <html lang="es">
@@ -998,9 +1060,7 @@ window.imprimirObraDirecta = function () {
 
 const btnImpObra = document.getElementById('btnImprimirObra');
 if (btnImpObra) {
-  btnImpObra.onclick = function () {
-    window.imprimirObraDirecta();
-  };
+  btnImpObra.onclick = function () { window.imprimirObraDirecta(); };
 }
 
 window.imprimirLotesSeleccionados = function () {
@@ -1009,15 +1069,52 @@ window.imprimirLotesSeleccionados = function () {
   const htmlFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
     return `<tr>
-              <td>${buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "-"}</td>
-              <td>${buscarProp(p, "Tit. Nombre") || "-"}</td>
-              <td>${buscarProp(p, "Ubicacion") || "-"}</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "Sin Padrón"}</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Tit. Nombre") || "Sin Titular"}</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Ubicacion") || "-"}</td>
             </tr>`;
   }).join('');
 
-  document.getElementById('cuerpoTablaImpresion').innerHTML = htmlFilas;
-  document.getElementById('totalizadorImpresionLotes').innerText = `Total de lotes seleccionados: ${lotesSeleccionadosMultiples.length}`;
-  window.print();
+  const ventanaImpresion = window.open('', '_blank', 'height=600,width=850');
+  if (!ventanaImpresion) return alert("Por favor, permite las ventanas emergentes para imprimir.");
+
+  ventanaImpresion.document.write(`
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Impresión de Lotes Seleccionados</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
+          h2 { color: #2c3e50; border-bottom: 2px solid #ffff00; padding-bottom: 8px; }
+          .total { margin-top: 10px; font-weight: bold; font-size: 14px; color: #16a085; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th { background-color: #2c3e50; color: white; padding: 10px; font-size: 12px; text-align: left; }
+          td { font-size: 12px; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+        </style>
+      </head>
+      <body>
+        <h2>📋 Lotes Seleccionados</h2>
+        <p class="total">Total de lotes seleccionados: ${lotesSeleccionadosMultiples.length}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Padrón</th>
+              <th>Titular</th>
+              <th>Ubicación</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${htmlFilas}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `);
+  ventanaImpresion.document.close();
+  ventanaImpresion.focus();
+  setTimeout(() => { ventanaImpresion.print(); }, 250);
 };
 
 window.imprimirLotesMunicipales = function () {
@@ -1046,6 +1143,8 @@ window.imprimirLotesMunicipales = function () {
   }).join('');
 
   const ventanaImpresion = window.open('', '_blank', 'height=600,width=850');
+  if (!ventanaImpresion) return alert("Por favor, permite las ventanas emergentes para imprimir.");
+
   ventanaImpresion.document.write(`
     <!DOCTYPE html>
     <html lang="es">
@@ -1087,6 +1186,69 @@ window.imprimirLotesMunicipales = function () {
 };
 
 // ==========================================
-// 15. INICIALIZACIÓN
+// 15. BÚSQUEDA BARRA SUPERIOR
+// ==========================================
+function ejecutarBusquedaBarra(texto) {
+  const sugBarra = document.getElementById('listaSugerenciasBarra');
+  if (!sugBarra) return;
+
+  const busqueda = normalizarTexto(texto);
+
+  if (busqueda.length === 0) {
+    sugBarra.style.display = 'none';
+    sugBarra.innerHTML = '';
+    return;
+  }
+
+  if (!datosTgi || !datosTgi.features) return;
+
+  const coincidentes = datosTgi.features.filter(f => {
+    if (!f || !f.properties) return false;
+    const titular = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente"));
+    return titular.includes(busqueda) || padron.includes(busqueda);
+  }).slice(0, 15);
+
+  if (coincidentes.length === 0) {
+    sugBarra.innerHTML = '<div class="item-sugerencia" style="color:#888;">Sin coincidencias</div>';
+    sugBarra.style.display = 'block';
+    return;
+  }
+
+  let html = '';
+  coincidentes.forEach(f => {
+    const titularOriginal = buscarProp(f.properties, "Tit. Nombre") || 'Sin Nombre';
+    const padronOriginal = String(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente") || 'S/N');
+
+    const titularResaltado = resaltarCoincidencia(titularOriginal, texto.trim());
+    const padronResaltado = resaltarCoincidencia(padronOriginal, texto.trim());
+
+    html += `
+      <div class="item-sugerencia" onclick="seleccionarLoteDesdeBarra('${escaparHTML(padronOriginal)}')">
+        <strong>Padrón: ${padronResaltado}</strong> - ${titularResaltado}
+      </div>
+    `;
+  });
+
+  sugBarra.innerHTML = html;
+  sugBarra.style.display = 'block';
+}
+
+window.seleccionarLoteDesdeBarra = function (padronVal) {
+  const sugBarra = document.getElementById('listaSugerenciasBarra');
+  if (sugBarra) sugBarra.style.display = "none";
+  seleccionarLotePorPadron(padronVal);
+};
+
+document.addEventListener('click', function(e) {
+  const inputBarra = document.getElementById('inputBarraBusqueda');
+  const listaBarra = document.getElementById('listaSugerenciasBarra');
+  if (listaBarra && inputBarra && e.target !== inputBarra && !listaBarra.contains(e.target)) {
+    listaBarra.style.display = 'none';
+  }
+});
+
+// ==========================================
+// 16. INICIALIZACIÓN
 // ==========================================
 cargarDatos();
