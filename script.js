@@ -173,6 +173,20 @@ function limpiarMontoDeuda(propiedades) {
   return limpiarMontoGenerico(buscarProp(propiedades, "Deuda TGI"));
 }
 
+function obtenerFrenteLote(p) {
+  const frente = buscarProp(p, "Frente") || buscarProp(p, "Medida Frente") || buscarProp(p, "Frente (m)") || buscarProp(p, "Medida_Frente") || buscarProp(p, "Frente_m");
+  return frente ? `${frente} m` : "-";
+}
+
+function obtenerSuperficieLote(p) {
+  const sup = buscarProp(p, "Superficie") || buscarProp(p, "Sup") || buscarProp(p, "Sup. Total") || buscarProp(p, "Sup (m2)") || buscarProp(p, "Sup_m2") || buscarProp(p, "Area");
+  return sup ? `${sup} m²` : "-";
+}
+
+function obtenerManzanaLote(p) {
+  return buscarProp(p, "Manzana") || buscarProp(p, "Mz") || buscarProp(p, "Mza") || buscarProp(p, "Nro Manzana") || buscarProp(p, "Seccion") || "-";
+}
+
 // ==========================================
 // 6. ESTILOS GEOJSON
 // ==========================================
@@ -191,7 +205,6 @@ function estiloManzanaPorSeccion(feature) {
 }
 
 function estiloLote(f) {
-  // 1. Si está activo el filtro exclusivo de "Sin Datos"
   if (mostrarSinDatosExclusivos) {
     const esSinD = esLoteSinDatos(f.properties);
     return esSinD
@@ -199,7 +212,6 @@ function estiloLote(f) {
       : { color: "#ccc", fillColor: "transparent", weight: 0.5, fillOpacity: 0 };
   }
 
-  // 2. Si está activo el filtro exclusivo de Baldíos
   const bField = f.properties.Baldio;
   const esBaldio = bField !== null && bField !== undefined && normalizarTexto(bField) === "s";
 
@@ -209,13 +221,12 @@ function estiloLote(f) {
       : { color: "#ccc", fillColor: "transparent", weight: 0.5, fillOpacity: 0 };
   }
 
-  // 3. Selección manual múltiple
+  // --- SELECCIÓN MÚLTIPLE EN ROJO INTENSO ---
   const estaSeleccionado = lotesSeleccionadosMultiples.includes(f);
   if (estaSeleccionado) {
-    return { color: "#ffff00", fillColor: "#ffff00", weight: 3.5, fillOpacity: 0.85 };
+    return { color: "#ff0033", fillColor: "#ff0033", weight: 3.5, fillOpacity: 0.7 };
   }
 
-  // 4. Filtro solo municipal
   const esMuni = esLoteMunicipal(f.properties);
   if (mostrarSoloMuni) {
     return esMuni 
@@ -227,7 +238,6 @@ function estiloLote(f) {
     return { color: "#1b4f72", fillColor: "#2980b9", weight: 1.5, fillOpacity: 0.6 };
   }
 
-  // 5. Visualización normal de obras / TGI
   if (!nombreObraActual) {
     const deu = limpiarMontoDeuda(f.properties);
     const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
@@ -426,7 +436,6 @@ function limpiarMedidasLote() {
 function toggleModoSinDatos() {
   mostrarSinDatosExclusivos = !mostrarSinDatosExclusivos;
 
-  // Si activamos este modo, desactivamos el de baldíos para evitar conflicto
   if (mostrarSinDatosExclusivos) {
     mostrarBaldiosExclusivos = false;
     const btnB = document.getElementById('btnToggleBaldios');
@@ -481,8 +490,7 @@ function toggleSeleccionLote(feature, layer) {
   }
 
   if (capaTgi) capaTgi.resetStyle(layer);
-  const lbl = document.getElementById('lblCantSeleccionados');
-  if (lbl) lbl.innerText = lotesSeleccionadosMultiples.length;
+  actualizarPanelSeleccionMultipleUI();
 }
 
 function vincularBotonesBarra() {
@@ -1064,57 +1072,263 @@ if (btnImpObra) {
 }
 
 window.imprimirLotesSeleccionados = function () {
-  if (lotesSeleccionadosMultiples.length === 0) return alert("No has seleccionado ningún lote.");
+  if (typeof lotesSeleccionadosMultiples === "undefined" || lotesSeleccionadosMultiples.length === 0) {
+    return alert("No has seleccionado ningún lote.");
+  }
 
+  // HOJA 1: Generación de filas para la tabla
   const htmlFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
+    const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "Sin Padrón";
+    
     return `<tr>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "Sin Padrón"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Tit. Nombre") || "Sin Titular"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Ubicacion") || "-"}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc;"><strong>${padron}</strong></td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc;">${buscarProp(p, "Tit. Nombre") || "Sin Titular"}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc;">${buscarProp(p, "Ubicacion") || "-"}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:center;">${obtenerManzanaLote(p)}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:right;">${obtenerFrenteLote(p)}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:right;">${obtenerSuperficieLote(p)}</td>
             </tr>`;
   }).join('');
 
-  const ventanaImpresion = window.open('', '_blank', 'height=600,width=850');
+  const ventanaImpresion = window.open('', '_blank', 'height=800,width=1000');
   if (!ventanaImpresion) return alert("Por favor, permite las ventanas emergentes para imprimir.");
 
+  // Estructura HTML + CSS optimizada para A4
   ventanaImpresion.document.write(`
     <!DOCTYPE html>
     <html lang="es">
       <head>
         <meta charset="UTF-8">
-        <title>Impresión de Lotes Seleccionados</title>
+        <title>Impresión A4 - Lotes Seleccionados</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
-          h2 { color: #2c3e50; border-bottom: 2px solid #ffff00; padding-bottom: 8px; }
-          .total { margin-top: 10px; font-weight: bold; font-size: 14px; color: #16a085; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #2c3e50; color: white; padding: 10px; font-size: 12px; text-align: left; }
-          td { font-size: 12px; }
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+
+          * { box-sizing: border-box; }
+
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+
+          .pagina {
+            width: 100%;
+            height: 100vh;
+            max-height: 270mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            box-sizing: border-box;
+          }
+
+          .hoja-2 {
+            page-break-before: always;
+            break-before: page;
+          }
+
+          h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #16a085;
+            padding-bottom: 6px;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+          }
+
+          .total {
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            font-size: 13px;
+            color: #16a085;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+          }
+
+          th {
+            background-color: #2c3e50 !important;
+            color: white !important;
+            padding: 8px;
+            font-size: 11px;
+            text-align: left;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          td { font-size: 11px; }
           tr:nth-child(even) { background-color: #f9f9f9; }
+
+          #mapaManzanaCompleta {
+            width: 100%;
+            flex-grow: 1;
+            min-height: 500px;
+            border: 1px solid #2c3e50;
+            border-radius: 4px;
+            margin-top: 10px;
+          }
+
+          .contenedor-rotado-padron {
+            background: transparent;
+            border: none;
+          }
+
+          .etiqueta-padron-orientada {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1.5px solid #ff0033;
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            display: inline-block;
+            transform-origin: center center;
+          }
+
+          @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .pagina { height: 100vh; }
+          }
         </style>
       </head>
       <body>
-        <h2>📋 Lotes Seleccionados</h2>
-        <p class="total">Total de lotes seleccionados: ${lotesSeleccionadosMultiples.length}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Padrón</th>
-              <th>Titular</th>
-              <th>Ubicación</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${htmlFilas}
-          </tbody>
-        </table>
+        <!-- HOJA 1 -->
+        <div class="pagina hoja-1">
+          <h2>📋 Reporte Detallado de Lotes Seleccionados</h2>
+          <p class="total">Total de parcelas seleccionadas: ${lotesSeleccionadosMultiples.length}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Padrón</th>
+                <th>Titular</th>
+                <th>Ubicación</th>
+                <th style="text-align: center;">Manzana</th>
+                <th style="text-align: right;">Frente</th>
+                <th style="text-align: right;">Superficie</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${htmlFilas}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- HOJA 2 -->
+        <div class="pagina hoja-2">
+          <h2>🗺️ Plano de la Manzana / Ubicación</h2>
+          <p style="font-size: 11px; color: #555; margin: 0;">Vista general de los lotes seleccionados sobre la manzana:</p>
+          <div id="mapaManzanaCompleta"></div>
+        </div>
       </body>
     </html>
   `);
+
   ventanaImpresion.document.close();
-  ventanaImpresion.focus();
-  setTimeout(() => { ventanaImpresion.print(); }, 250);
+
+  ventanaImpresion.onload = function() {
+    const doc = ventanaImpresion.document;
+    const mapaContainer = doc.getElementById('mapaManzanaCompleta');
+    if (!mapaContainer) return;
+
+    const mapManzana = ventanaImpresion.L.map('mapaManzanaCompleta', {
+      center: [-34.268, -62.712],
+      zoom: 15,
+      zoomControl: false,
+      attributionControl: false,
+      interactive: false
+    });
+
+    ventanaImpresion.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 21
+    }).addTo(mapManzana);
+
+    const grupoSeleccionados = ventanaImpresion.L.featureGroup().addTo(mapManzana);
+
+    function calcularAnguloFondoParcela(coords) {
+      if (!coords || coords.length < 2) return 0;
+
+      let maxDist = 0;
+      let p1Max = coords[0], p2Max = coords[1];
+
+      for (let i = 0; i < coords.length; i++) {
+        const pA = coords[i];
+        const pB = coords[(i + 1) % coords.length];
+        const dist = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]);
+        if (dist > maxDist) {
+          maxDist = dist;
+          p1Max = pA;
+          p2Max = pB;
+        }
+      }
+
+      const pt1 = mapManzana.latLngToContainerPoint([p1Max[1], p1Max[0]]);
+      const pt2 = mapManzana.latLngToContainerPoint([p2Max[1], p2Max[0]]);
+
+      let anguloDeg = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
+
+      if (anguloDeg > 90) anguloDeg -= 180;
+      if (anguloDeg < -90) anguloDeg += 180;
+
+      return anguloDeg;
+    }
+
+    lotesSeleccionadosMultiples.forEach(feature => {
+      const layerGeo = ventanaImpresion.L.geoJSON(feature, {
+        style: {
+          color: '#ff0033',
+          fillColor: '#ff0033',
+          weight: 3,
+          fillOpacity: 0.4
+        }
+      }).addTo(grupoSeleccionados);
+
+      const bounds = layerGeo.getBounds();
+      const centro = bounds.getCenter();
+      const p = feature.properties;
+      const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "S/N";
+
+      let geomCoords = [];
+      if (feature.geometry.type === 'Polygon') {
+        geomCoords = feature.geometry.coordinates[0];
+      } else if (feature.geometry.type === 'MultiPolygon') {
+        geomCoords = feature.geometry.coordinates[0][0];
+      }
+
+      const angulo = calcularAnguloFondoParcela(geomCoords);
+
+      ventanaImpresion.L.marker(centro, {
+        icon: ventanaImpresion.L.divIcon({
+          className: 'contenedor-rotado-padron',
+          html: `<div class="etiqueta-padron-orientada" style="transform: rotate(${angulo}deg);">${padron}</div>`,
+          iconSize: [80, 20],
+          iconAnchor: [40, 10]
+        })
+      }).addTo(mapManzana);
+    });
+
+    const boundsGlobales = grupoSeleccionados.getBounds();
+    if (boundsGlobales.isValid()) {
+      mapManzana.fitBounds(boundsGlobales, { padding: [40, 40] });
+    }
+
+    setTimeout(() => {
+      mapManzana.invalidateSize();
+      ventanaImpresion.focus();
+      ventanaImpresion.print();
+    }, 700);
+  };
 };
 
 window.imprimirLotesMunicipales = function () {
@@ -1249,6 +1463,89 @@ document.addEventListener('click', function(e) {
 });
 
 // ==========================================
-// 16. INICIALIZACIÓN
+// 16. INICIALIZACIÓN Y PANEL SELECCIÓN
 // ==========================================
+function actualizarPanelSeleccionMultipleUI() {
+  const contenedor = document.getElementById('listaSeleccionadosDetalle');
+  const lbl = document.getElementById('lblCantSeleccionados');
+  if (lbl) lbl.innerText = lotesSeleccionadosMultiples.length;
+
+  if (!contenedor) return;
+
+  if (lotesSeleccionadosMultiples.length === 0) {
+    contenedor.innerHTML = '<p style="color:#7f8c8d; font-size:11px; margin:5px 0;">No hay lotes seleccionados.</p>';
+    return;
+  }
+
+  let html = '<div style="max-height: 150px; overflow-y: auto; margin-top: 8px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; background: #fff;">';
+  lotesSeleccionadosMultiples.forEach((f, index) => {
+    const p = f.properties;
+    const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "S/N";
+    const titular = buscarProp(p, "Tit. Nombre") || "Sin Titular";
+    const manzana = obtenerManzanaLote(p);
+    const frente = obtenerFrenteLote(p);
+    const superficie = obtenerSuperficieLote(p);
+
+    html += `
+      <div style="font-size: 11px; padding: 4px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <strong>Pad: ${padron}</strong> - ${titular}<br/>
+          <span style="color:#555; font-size:10px;">Mz: <b>${manzana}</b> | Frente: <b>${frente}</b> | Sup: <b>${superficie}</b></span>
+        </div>
+        <button onclick="quitarLoteSeleccionado(${index})" style="background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer; padding:1px 5px; font-size:10px;">✕</button>
+      </div>
+    `;
+  });
+  html += '</div>';
+  contenedor.innerHTML = html;
+}
+
+window.quitarLoteSeleccionado = function(index) {
+  if (index >= 0 && index < lotesSeleccionadosMultiples.length) {
+    const feature = lotesSeleccionadosMultiples[index];
+    lotesSeleccionadosMultiples.splice(index, 1);
+    if (capaTgi) {
+      capaTgi.eachLayer(l => {
+        if (l.feature === feature) capaTgi.resetStyle(l);
+      });
+    }
+    actualizarPanelSeleccionMultipleUI();
+  }
+};
+
+window.exportarExcelSeleccionados = function() {
+  if (lotesSeleccionadosMultiples.length === 0) {
+    alert("No hay lotes seleccionados para exportar.");
+    return;
+  }
+
+  const datosExportar = lotesSeleccionadosMultiples.map(f => {
+    const p = f.properties;
+    return {
+      "Padrón": buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "",
+      "Titular": buscarProp(p, "Tit. Nombre") || "",
+      "Ubicación": buscarProp(p, "Ubicacion") || "",
+      "Manzana": obtenerManzanaLote(p),
+      "Frente": obtenerFrenteLote(p),
+      "Superficie": obtenerSuperficieLote(p),
+      "Deuda TGI": esLoteMunicipal(p) ? "Exento" : limpiarMontoDeuda(p),
+      "Meses Adeudados": parseInt(buscarProp(p, "Meses Adeud.TGI")) || 0,
+      "Baldío": buscarProp(p, "Baldio") || ""
+    };
+  });
+
+  exportarAExcel(datosExportar, "Lotes_Seleccionados.xlsx", "Lotes Seleccionados");
+};
+
+function exportarAExcel(dataArray, filename, sheetName) {
+  if (typeof XLSX === 'undefined') {
+    alert("La librería de Excel no está cargada. Asegúrese de incluir SheetJS/xlsx.full.min.js");
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(dataArray);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName || "Datos");
+  XLSX.writeFile(wb, filename);
+}
+
 cargarDatos();
