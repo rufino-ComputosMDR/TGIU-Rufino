@@ -1000,8 +1000,37 @@ function generarEstadisticaObra(features, textObra) {
 }
 
 // ==========================================
-// 14. IMPRESIÓN Y INFORMES (CON LOGO Y A4 HORIZONTAL)
+// 14. IMPRESIÓN Y INFORMES (COMPLETO: RESPETO DE APELLIDOS + PÁGINAS SIN SOLAPAR + A4 LANDSCAPE)
 // ==========================================
+
+// Función de saneamiento: preserva apellidos tradicionales (Cabodevila, Vila) y repara la Ñ corrupta
+function sanitizarTextoUTF8(texto) {
+  if (texto === null || texto === undefined) return "-";
+  
+  let str = String(texto).trim();
+  if (!str) return "-";
+
+  // 1. Reemplazo directo del carácter de reemplazo Unicode (\uFFFD / ) por Ñ
+  str = str.replace(/\uFFFD/g, "Ñ");
+
+  // 2. Diccionario enfocado exclusivamente en cadenas con la Ñ dañada
+  str = str
+    .replace(/OTA\uFFFD?O/gi, "OTAÑO")
+    .replace(/NU\uFFFD?EZ/gi, "NUÑEZ")
+    .replace(/MU\uFFFD?OZ/gi, "MUÑOZ")
+    .replace(/PE\uFFFD?A/gi, "PEÑA")
+    .replace(/CA\uFFFD?ADA/gi, "CAÑADA");
+
+  // 3. Intento de reparación estándar para caracteres multibyte mal decodificados (ej: Ã±)
+  try {
+    if (/[\xC2-\xF4][\x80-\xBF]/.test(str)) {
+      str = decodeURIComponent(escape(str));
+    }
+  } catch (e) {}
+
+  return str;
+}
+
 window.imprimirObraDirecta = function () {
   if (!lotesObraActual || lotesObraActual.length === 0) return alert("Seleccione primero una obra válida.");
 
@@ -1011,10 +1040,14 @@ window.imprimirObraDirecta = function () {
     const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
     sumaTotal += deuda;
 
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+    const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre"));
+    const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
+
     return `<tr>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "-"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;"><strong>${buscarProp(p, "Tit. Nombre") || "-"}</strong></td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Ubicacion") || "-"}</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${padron}</td>
+              <td style="padding: 8px; border: 1px solid #ddd;"><strong>${titular}</strong></td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${ubicacion}</td>
               <td style="padding: 8px; border: 1px solid #ddd; text-align:center;">${parseInt(buscarProp(p, "Cuotas Atrasadas")) || 0}</td>
               <td style="padding: 8px; border: 1px solid #ddd; text-align:right;">${esLoteMunicipal(p) ? "Exento" : formatearMoneda(deuda)}</td>
             </tr>`;
@@ -1027,8 +1060,9 @@ window.imprimirObraDirecta = function () {
     <!DOCTYPE html>
     <html lang="es">
       <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta charset="UTF-8">
-        <title>Obra: ${nombreObraActual}</title>
+        <title>Obra: ${sanitizarTextoUTF8(nombreObraActual)}</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
           h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 8px; margin-bottom: 5px; }
@@ -1040,7 +1074,7 @@ window.imprimirObraDirecta = function () {
         </style>
       </head>
       <body>
-        <h2>🚧 Informe de Obra: ${nombreObraActual}</h2>
+        <h2>🚧 Informe de Obra: ${sanitizarTextoUTF8(nombreObraActual)}</h2>
         <p style="margin: 0; font-size: 13px;">Cantidad de Lotes Afectados: <strong>${lotesObraActual.length}</strong></p>
         <p class="total">DEUDA TOTAL ACUMULADA: ${formatearMoneda(sumaTotal)}</p>
         <table>
@@ -1075,18 +1109,18 @@ window.imprimirLotesSeleccionados = function () {
     return alert("No has seleccionado ningún lote.");
   }
 
-  // URL del logo (Puedes reemplazar este enlace por tu propia ruta local o asset)
-  // Cambiamos la URL previa por tu archivo local
-const LOGO_URL = './logo.png';
+  const LOGO_URL = './logo.png';
 
   const htmlFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
-    const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "Sin Padrón";
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+    const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre"));
+    const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
     
     return `<tr>
               <td style="padding: 6px 8px; border: 1px solid #ccc;"><strong>${padron}</strong></td>
-              <td style="padding: 6px 8px; border: 1px solid #ccc;">${buscarProp(p, "Tit. Nombre") || "Sin Titular"}</td>
-              <td style="padding: 6px 8px; border: 1px solid #ccc;">${buscarProp(p, "Ubicacion") || "-"}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc;">${titular}</td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc;">${ubicacion}</td>
               <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:center;">${obtenerManzanaLote(p)}</td>
               <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:right;">${obtenerFrenteLote(p)}</td>
               <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:right;">${obtenerSuperficieLote(p)}</td>
@@ -1100,6 +1134,7 @@ const LOGO_URL = './logo.png';
     <!DOCTYPE html>
     <html lang="es">
       <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta charset="UTF-8">
         <title>Impresión A4 Horizontal - Lotes Seleccionados</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -1107,7 +1142,7 @@ const LOGO_URL = './logo.png';
         <style>
           @page {
             size: A4 landscape;
-            margin: 10mm;
+            margin: 12mm;
           }
 
           * { box-sizing: border-box; }
@@ -1122,30 +1157,28 @@ const LOGO_URL = './logo.png';
 
           .pagina {
             width: 100%;
-            height: 100vh;
-            max-height: 185mm;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
             box-sizing: border-box;
+            position: relative;
           }
 
           .hoja-2 {
             page-break-before: always;
             break-before: page;
+            height: 180mm;
+            display: flex;
+            flex-direction: column;
           }
 
-          /* ENCABEZADO CON LOGO Y TÍTULO */
           .encabezado-reporte {
             display: flex;
             align-items: center;
             border-bottom: 2px solid #16a085;
             padding-bottom: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
           }
 
           .logo-reporte {
-            height: 50px;
+            height: 45px;
             width: auto;
             margin-right: 15px;
             object-fit: contain;
@@ -1164,7 +1197,7 @@ const LOGO_URL = './logo.png';
           }
 
           .total {
-            margin: 0 0 8px 0;
+            margin: 0 0 10px 0;
             font-weight: bold;
             font-size: 13px;
             color: #16a085;
@@ -1174,6 +1207,12 @@ const LOGO_URL = './logo.png';
             width: 100%;
             border-collapse: collapse;
             margin-top: 5px;
+            page-break-inside: auto;
+          }
+
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
           }
 
           th {
@@ -1191,8 +1230,7 @@ const LOGO_URL = './logo.png';
 
           #mapaManzanaCompleta {
             width: 100%;
-            flex-grow: 1;
-            min-height: 400px;
+            height: 135mm;
             border: 1px solid #2c3e50;
             border-radius: 4px;
             margin-top: 8px;
@@ -1221,12 +1259,11 @@ const LOGO_URL = './logo.png';
 
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .pagina { height: 100vh; max-height: 185mm; }
           }
         </style>
       </head>
       <body>
-        <!-- HOJA 1 -->
+        <!-- HOJA 1: TABLA -->
         <div class="pagina hoja-1">
           <div class="encabezado-reporte">
             <img src="${LOGO_URL}" alt="Logo Municipalidad" class="logo-reporte" />
@@ -1254,7 +1291,7 @@ const LOGO_URL = './logo.png';
           </table>
         </div>
 
-        <!-- HOJA 2 -->
+        <!-- HOJA 2: MAPA -->
         <div class="pagina hoja-2">
           <div class="encabezado-reporte">
             <img src="${LOGO_URL}" alt="Logo Municipalidad" class="logo-reporte" />
@@ -1331,7 +1368,7 @@ const LOGO_URL = './logo.png';
       const bounds = layerGeo.getBounds();
       const centro = bounds.getCenter();
       const p = feature.properties;
-      const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "S/N";
+      const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
 
       let geomCoords = [];
       if (feature.geometry.type === 'Polygon') {
@@ -1374,9 +1411,9 @@ window.imprimirLotesMunicipales = function () {
 
   const htmlFilas = lotesMuni.map(f => {
     const p = f.properties;
-    const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "-";
-    const titular = buscarProp(p, "Tit. Nombre") || "MUNICIPALIDAD DE RUFINO";
-    const ubicacion = buscarProp(p, "Ubicacion") || "-";
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+    const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre") || "MUNICIPALIDAD DE RUFINO");
+    const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
     const deudaRaw = buscarProp(p, "Deuda TGI");
     const deudaTGI = (deudaRaw !== "" && deudaRaw !== null && deudaRaw !== undefined) 
                      ? (isNaN(deudaRaw) ? deudaRaw : formatearMoneda(deudaRaw))
@@ -1397,6 +1434,7 @@ window.imprimirLotesMunicipales = function () {
     <!DOCTYPE html>
     <html lang="es">
       <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta charset="UTF-8">
         <title>Detalle de Lotes Municipales - Rufino</title>
         <style>
