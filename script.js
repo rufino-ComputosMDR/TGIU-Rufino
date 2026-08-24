@@ -1000,10 +1000,10 @@ function generarEstadisticaObra(features, textObra) {
 }
 
 // ==========================================
-// 14. IMPRESIÓN Y INFORMES (COMPLETO: RESPETO DE APELLIDOS + PÁGINAS SIN SOLAPAR + A4 LANDSCAPE)
+// 14. IMPRESIÓN Y INFORMES (COMPLETO FINAL: PROTECCIÓN PEAT. + RESPETO DE APELLIDOS + PÁGINAS SIN SOLAPAR)
 // ==========================================
 
-// Función de saneamiento: preserva apellidos tradicionales (Cabodevila, Vila) y repara la Ñ corrupta
+// Función de saneamiento: preserva direcciones (PEAT.), apellidos (Cabodevila) y repara la Ñ corrupta
 function sanitizarTextoUTF8(texto) {
   if (texto === null || texto === undefined) return "-";
   
@@ -1013,15 +1013,18 @@ function sanitizarTextoUTF8(texto) {
   // 1. Reemplazo directo del carácter de reemplazo Unicode (\uFFFD / ) por Ñ
   str = str.replace(/\uFFFD/g, "Ñ");
 
-  // 2. Diccionario enfocado exclusivamente en cadenas con la Ñ dañada
-  str = str
-    .replace(/OTA\uFFFD?O/gi, "OTAÑO")
-    .replace(/NU\uFFFD?EZ/gi, "NUÑEZ")
-    .replace(/MU\uFFFD?OZ/gi, "MUÑOZ")
-    .replace(/PE\uFFFD?A/gi, "PEÑA")
-    .replace(/CA\uFFFD?ADA/gi, "CAÑADA");
+  // 2. Protección explícita de abreviaturas viales para evitar falsos positivos
+  str = str.replace(/\bPEAT\./gi, "PEAT.");
 
-  // 3. Intento de reparación estándar para caracteres multibyte mal decodificados (ej: Ã±)
+  // 3. Diccionario seguro utilizando límites de palabra (\b) para aislar apellidos
+  str = str
+    .replace(/\bOTA\uFFFD?O\b/gi, "OTAÑO")
+    .replace(/\bNU\uFFFD?EZ\b/gi, "NUÑEZ")
+    .replace(/\bMU\uFFFD?OZ\b/gi, "MUÑOZ")
+    .replace(/\bPE\uFFFD?A\b/gi, "PEÑA")
+    .replace(/\bCA\uFFFD?ADA\b/gi, "CAÑADA");
+
+  // 4. Intento de reparación estándar para caracteres multibyte mal decodificados (ej: Ã±)
   try {
     if (/[\xC2-\xF4][\x80-\xBF]/.test(str)) {
       str = decodeURIComponent(escape(str));
@@ -1263,7 +1266,7 @@ window.imprimirLotesSeleccionados = function () {
         </style>
       </head>
       <body>
-        <!-- HOJA 1: TABLA -->
+        <!-- HOJA 1: TABLA DE DETALLES -->
         <div class="pagina hoja-1">
           <div class="encabezado-reporte">
             <img src="${LOGO_URL}" alt="Logo Municipalidad" class="logo-reporte" />
@@ -1291,7 +1294,7 @@ window.imprimirLotesSeleccionados = function () {
           </table>
         </div>
 
-        <!-- HOJA 2: MAPA -->
+        <!-- HOJA 2: MAPA CATASTRAL -->
         <div class="pagina hoja-2">
           <div class="encabezado-reporte">
             <img src="${LOGO_URL}" alt="Logo Municipalidad" class="logo-reporte" />
