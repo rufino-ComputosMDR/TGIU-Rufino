@@ -5,10 +5,10 @@ if (typeof ChartDataLabels !== 'undefined') {
   Chart.register(ChartDataLabels);
 }
 
-const capaCalles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  maxZoom: 21,
-  maxNativeZoom: 19,
-  attribution: '© CartoDB'
+// MAPA BASE: OpenStreetMap (Reemplaza a Carto)
+const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap contributors'
 });
 
 const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
@@ -139,7 +139,7 @@ function buscarProp(obj, texto) {
 }
 
 function esLoteSinDatos(propiedades) {
-  const padron = normalizarTexto(buscarProp(propiedades, "Padron") || buscarProp(propiedades, "Contribuyente"));
+  const padron = normalizarTexto(buscarProp(propiedades, "Padronn") || buscarProp(propiedades, "Contribuyente"));
   const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre"));
   return padron === "" && titular === "";
 }
@@ -626,7 +626,7 @@ function filtrarTodo() {
 
   listadoLotesFiltroActual = datosTgi.features.filter(f => {
     const nom = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
-    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente"));
     const dom = normalizarTexto(buscarProp(f.properties, "Ubicacion"));
     return (nom.includes(apellidoNorm) || padron.includes(apellidoNorm)) && dom.includes(calleInputNorm);
   });
@@ -647,7 +647,7 @@ function filtrarTodo() {
   if (apellidoNorm.length >= 2) {
     const htmlA = listadoLotesFiltroActual.slice(0, 10).map(f => {
       const n = buscarProp(f.properties, "Tit. Nombre") || "Sin Nombre";
-      const p = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente") || "-";
+      const p = buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente") || "-";
       const d = buscarProp(f.properties, "Ubicacion") || "Ubicación no especificada";
 
       return `<div class="item-sugerencia" onclick="seleccionarLotePorPadron('${escaparHTML(p)}')">
@@ -690,7 +690,7 @@ window.seleccionarCalle = function (nombreCalleLimpia) {
 
 window.seleccionarLotePorPadron = function (padronVal) {
   const lote = datosTgi.features.find(f => 
-    String(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente")) === String(padronVal)
+    String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente")) === String(padronVal)
   );
 
   if (lote) {
@@ -700,7 +700,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
     mostrarFicha(lote.properties);
     if (capaTgi) {
       capaTgi.eachLayer(l => {
-        if (String(buscarProp(l.feature.properties, "Padron") || buscarProp(l.feature.properties, "Contribuyente")) === String(padronVal)) {
+        if (String(buscarProp(l.feature.properties, "Padronn") || buscarProp(l.feature.properties, "Contribuyente")) === String(padronVal)) {
           l.bringToFront();
           l.fire('click');
         }
@@ -1000,23 +1000,18 @@ function generarEstadisticaObra(features, textObra) {
 }
 
 // ==========================================
-// 14. IMPRESIÓN Y INFORMES (COMPLETO FINAL: PROTECCIÓN PEAT. + RESPETO DE APELLIDOS + PÁGINAS SIN SOLAPAR)
+// 14. IMPRESIÓN Y INFORMES
 // ==========================================
 
-// Función de saneamiento: preserva direcciones (PEAT.), apellidos (Cabodevila) y repara la Ñ corrupta
 function sanitizarTextoUTF8(texto) {
   if (texto === null || texto === undefined) return "-";
   
   let str = String(texto).trim();
   if (!str) return "-";
 
-  // 1. Reemplazo directo del carácter de reemplazo Unicode (\uFFFD / ) por Ñ
   str = str.replace(/\uFFFD/g, "Ñ");
-
-  // 2. Protección explícita de abreviaturas viales para evitar falsos positivos
   str = str.replace(/\bPEAT\./gi, "PEAT.");
 
-  // 3. Diccionario seguro utilizando límites de palabra (\b) para aislar apellidos
   str = str
     .replace(/\bOTA\uFFFD?O\b/gi, "OTAÑO")
     .replace(/\bNU\uFFFD?EZ\b/gi, "NUÑEZ")
@@ -1024,7 +1019,6 @@ function sanitizarTextoUTF8(texto) {
     .replace(/\bPE\uFFFD?A\b/gi, "PEÑA")
     .replace(/\bCA\uFFFD?ADA\b/gi, "CAÑADA");
 
-  // 4. Intento de reparación estándar para caracteres multibyte mal decodificados (ej: Ã±)
   try {
     if (/[\xC2-\xF4][\x80-\xBF]/.test(str)) {
       str = decodeURIComponent(escape(str));
@@ -1043,7 +1037,7 @@ window.imprimirObraDirecta = function () {
     const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
     sumaTotal += deuda;
 
-    const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
     const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre"));
     const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
 
@@ -1116,7 +1110,7 @@ window.imprimirLotesSeleccionados = function () {
 
   const htmlFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
-    const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
     const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre"));
     const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
     
@@ -1324,8 +1318,9 @@ window.imprimirLotesSeleccionados = function () {
       interactive: false
     });
 
-    ventanaImpresion.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 21
+    // MAPA EN REPORTE IMPRESO: OpenStreetMap (Reemplaza a Carto)
+    ventanaImpresion.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
     }).addTo(mapManzana);
 
     const grupoSeleccionados = ventanaImpresion.L.featureGroup().addTo(mapManzana);
@@ -1371,7 +1366,7 @@ window.imprimirLotesSeleccionados = function () {
       const bounds = layerGeo.getBounds();
       const centro = bounds.getCenter();
       const p = feature.properties;
-      const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+      const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
 
       let geomCoords = [];
       if (feature.geometry.type === 'Polygon') {
@@ -1414,7 +1409,7 @@ window.imprimirLotesMunicipales = function () {
 
   const htmlFilas = lotesMuni.map(f => {
     const p = f.properties;
-    const padron = sanitizarTextoUTF8(buscarProp(p, "Padron") || buscarProp(p, "Contribuyente"));
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
     const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre") || "MUNICIPALIDAD DE RUFINO");
     const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
     const deudaRaw = buscarProp(p, "Deuda TGI");
@@ -1494,7 +1489,7 @@ function ejecutarBusquedaBarra(texto) {
   const coincidentes = datosTgi.features.filter(f => {
     if (!f || !f.properties) return false;
     const titular = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
-    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente"));
     return titular.includes(busqueda) || padron.includes(busqueda);
   }).slice(0, 15);
 
@@ -1507,7 +1502,7 @@ function ejecutarBusquedaBarra(texto) {
   let html = '';
   coincidentes.forEach(f => {
     const titularOriginal = buscarProp(f.properties, "Tit. Nombre") || 'Sin Nombre';
-    const padronOriginal = String(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contribuyente") || 'S/N');
+    const padronOriginal = String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente") || 'S/N');
 
     const titularResaltado = resaltarCoincidencia(titularOriginal, texto.trim());
     const padronResaltado = resaltarCoincidencia(padronOriginal, texto.trim());
@@ -1555,7 +1550,7 @@ function actualizarPanelSeleccionMultipleUI() {
   let html = '<div style="max-height: 150px; overflow-y: auto; margin-top: 8px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; background: #fff;">';
   lotesSeleccionadosMultiples.forEach((f, index) => {
     const p = f.properties;
-    const padron = buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "S/N";
+    const padron = buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente") || "S/N";
     const titular = buscarProp(p, "Tit. Nombre") || "Sin Titular";
     const manzana = obtenerManzanaLote(p);
     const frente = obtenerFrenteLote(p);
@@ -1597,7 +1592,7 @@ window.exportarExcelSeleccionados = function() {
   const datosExportar = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
     return {
-      "Padrón": buscarProp(p, "Padron") || buscarProp(p, "Contribuyente") || "",
+      "Padrón": buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente") || "",
       "Titular": buscarProp(p, "Tit. Nombre") || "",
       "Ubicación": buscarProp(p, "Ubicacion") || "",
       "Manzana": obtenerManzanaLote(p),
