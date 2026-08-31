@@ -139,7 +139,7 @@ function buscarProp(obj, texto) {
 }
 
 function esLoteSinDatos(propiedades) {
-  const padron = normalizarTexto(buscarProp(propiedades, "Padronn") || buscarProp(propiedades, "Contribuyente"));
+  const padron = normalizarTexto(buscarProp(propiedades, "Padronn") || buscarProp(propiedades, "Padron"));
   const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre"));
   return padron === "" && titular === "";
 }
@@ -626,7 +626,7 @@ function filtrarTodo() {
 
   listadoLotesFiltroActual = datosTgi.features.filter(f => {
     const nom = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
-    const padron = normalizarTexto(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron"));
     const dom = normalizarTexto(buscarProp(f.properties, "Ubicacion"));
     return (nom.includes(apellidoNorm) || padron.includes(apellidoNorm)) && dom.includes(calleInputNorm);
   });
@@ -647,7 +647,7 @@ function filtrarTodo() {
   if (apellidoNorm.length >= 2) {
     const htmlA = listadoLotesFiltroActual.slice(0, 10).map(f => {
       const n = buscarProp(f.properties, "Tit. Nombre") || "Sin Nombre";
-      const p = buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente") || "-";
+      const p = buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron") || "-";
       const d = buscarProp(f.properties, "Ubicacion") || "Ubicación no especificada";
 
       return `<div class="item-sugerencia" onclick="seleccionarLotePorPadron('${escaparHTML(p)}')">
@@ -690,7 +690,7 @@ window.seleccionarCalle = function (nombreCalleLimpia) {
 
 window.seleccionarLotePorPadron = function (padronVal) {
   const lote = datosTgi.features.find(f => 
-    String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente")) === String(padronVal)
+    String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron")) === String(padronVal)
   );
 
   if (lote) {
@@ -700,7 +700,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
     mostrarFicha(lote.properties);
     if (capaTgi) {
       capaTgi.eachLayer(l => {
-        if (String(buscarProp(l.feature.properties, "Padronn") || buscarProp(l.feature.properties, "Contribuyente")) === String(padronVal)) {
+        if (String(buscarProp(l.feature.properties, "Padronn") || buscarProp(l.feature.properties, "Padron")) === String(padronVal)) {
           l.bringToFront();
           l.fire('click');
         }
@@ -1037,7 +1037,7 @@ window.imprimirObraDirecta = function () {
     const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
     sumaTotal += deuda;
 
-    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Padron"));
     const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre"));
     const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
 
@@ -1110,12 +1110,14 @@ window.imprimirLotesSeleccionados = function () {
 
   const htmlFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
-    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
-    const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre"));
-    const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Padron"));
+    const contribuyente = padron;
+    const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre") || buscarProp(p, "Titular"));
+    const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion") || buscarProp(p, "Direccion"));
     
     return `<tr>
               <td style="padding: 6px 8px; border: 1px solid #ccc;"><strong>${padron}</strong></td>
+              <td style="padding: 6px 8px; border: 1px solid #ccc;">${contribuyente}</td>
               <td style="padding: 6px 8px; border: 1px solid #ccc;">${titular}</td>
               <td style="padding: 6px 8px; border: 1px solid #ccc;">${ubicacion}</td>
               <td style="padding: 6px 8px; border: 1px solid #ccc; text-align:center;">${obtenerManzanaLote(p)}</td>
@@ -1275,6 +1277,7 @@ window.imprimirLotesSeleccionados = function () {
             <thead>
               <tr>
                 <th>Padrón</th>
+                <th>Contribuyente</th>
                 <th>Titular</th>
                 <th>Ubicación</th>
                 <th style="text-align: center;">Manzana</th>
@@ -1318,7 +1321,7 @@ window.imprimirLotesSeleccionados = function () {
       interactive: false
     });
 
-    // MAPA EN REPORTE IMPRESO: OpenStreetMap (Reemplaza a Carto)
+    // MAPA EN REPORTE IMPRESO: OpenStreetMap
     ventanaImpresion.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(mapManzana);
@@ -1366,7 +1369,7 @@ window.imprimirLotesSeleccionados = function () {
       const bounds = layerGeo.getBounds();
       const centro = bounds.getCenter();
       const p = feature.properties;
-      const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
+      const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Padron"));
 
       let geomCoords = [];
       if (feature.geometry.type === 'Polygon') {
@@ -1409,7 +1412,7 @@ window.imprimirLotesMunicipales = function () {
 
   const htmlFilas = lotesMuni.map(f => {
     const p = f.properties;
-    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente"));
+    const padron = sanitizarTextoUTF8(buscarProp(p, "Padronn") || buscarProp(p, "Padron"));
     const titular = sanitizarTextoUTF8(buscarProp(p, "Tit. Nombre") || "MUNICIPALIDAD DE RUFINO");
     const ubicacion = sanitizarTextoUTF8(buscarProp(p, "Ubicacion"));
     const deudaRaw = buscarProp(p, "Deuda TGI");
@@ -1489,7 +1492,7 @@ function ejecutarBusquedaBarra(texto) {
   const coincidentes = datosTgi.features.filter(f => {
     if (!f || !f.properties) return false;
     const titular = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
-    const padron = normalizarTexto(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron"));
     return titular.includes(busqueda) || padron.includes(busqueda);
   }).slice(0, 15);
 
@@ -1502,7 +1505,7 @@ function ejecutarBusquedaBarra(texto) {
   let html = '';
   coincidentes.forEach(f => {
     const titularOriginal = buscarProp(f.properties, "Tit. Nombre") || 'Sin Nombre';
-    const padronOriginal = String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contribuyente") || 'S/N');
+    const padronOriginal = String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron") || 'S/N');
 
     const titularResaltado = resaltarCoincidencia(titularOriginal, texto.trim());
     const padronResaltado = resaltarCoincidencia(padronOriginal, texto.trim());
@@ -1550,14 +1553,14 @@ function actualizarPanelSeleccionMultipleUI() {
   let html = '<div style="max-height: 150px; overflow-y: auto; margin-top: 8px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; background: #fff;">';
   lotesSeleccionadosMultiples.forEach((f, index) => {
     const p = f.properties;
-    const padron = buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente") || "S/N";
+    const padron = buscarProp(p, "Padronn") || buscarProp(p, "Padron") || "S/N";
     const titular = buscarProp(p, "Tit. Nombre") || "Sin Titular";
     const manzana = obtenerManzanaLote(p);
     const frente = obtenerFrenteLote(p);
     const superficie = obtenerSuperficieLote(p);
 
     html += `
-      <div style="font-size: 11px; padding: 4px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-align: center;">
+      <div style="font-size: 11px; padding: 4px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
         <div>
           <strong>Pad: ${padron}</strong> - ${titular}<br/>
           <span style="color:#555; font-size:10px;">Mz: <b>${manzana}</b> | Frente: <b>${frente}</b> | Sup: <b>${superficie}</b></span>
@@ -1592,7 +1595,7 @@ window.exportarExcelSeleccionados = function() {
   const datosExportar = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties;
     return {
-      "Padrón": buscarProp(p, "Padronn") || buscarProp(p, "Contribuyente") || "",
+      "Padrón": buscarProp(p, "Padronn") || buscarProp(p, "Padron") || "",
       "Titular": buscarProp(p, "Tit. Nombre") || "",
       "Ubicación": buscarProp(p, "Ubicacion") || "",
       "Manzana": obtenerManzanaLote(p),
