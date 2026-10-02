@@ -5,16 +5,14 @@ if (typeof ChartDataLabels !== 'undefined') {
   Chart.register(ChartDataLabels);
 }
 
-const capaCalles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  maxZoom: 21,
-  maxNativeZoom: 19,
-  attribution: '© CartoDB'
+const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
-const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-  maxZoom: 21,
-  maxNativeZoom: 20,
-  attribution: '© Google Maps'
+const capaSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
 });
 
 const map = L.map('map', {
@@ -443,7 +441,7 @@ function toggleModoSinDatos() {
   const btnB = document.getElementById('btnSeleccionarSinDatosBarra');
   const panelTotalizador = document.getElementById('totalizadorSinDatos');
 
-  const textoBtn = mostrarSinDatosExclusivos ? "⚠️ Sin Datos: PRENDIDO" : "⚠️ Sin Datos: APAGADO";
+  const textoBtn = mostrarSinDatosExclusivos ? "⚠️️ Sin Datos: PRENDIDO" : "⚠️ Sin Datos: APAGADO";
 
   if (btnP) {
     btnP.innerHTML = textoBtn;
@@ -497,7 +495,7 @@ function vincularBotonesBarra() {
         btnTgi.classList.add('activo');
       } else {
         if (capaTgi) map.removeLayer(capaTgi);
-        btnTgi.innerHTML = "🗺️️ TGI (OFF)";
+        btnTgi.innerHTML = "🗺 TGI (OFF)";
         btnTgi.classList.remove('activo');
       }
     };
@@ -543,7 +541,7 @@ function vincularBotonesBarra() {
   if (btnMuni) {
     btnMuni.onclick = function () {
       mostrarSoloMuni = !mostrarSoloMuni;
-      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Muni (ON)" : "🏛️ Muni";
+      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Muni (ON)" : "🏛️️ Muni";
       btnMuni.classList.toggle('activo', mostrarSoloMuni);
 
       if (capaTgi) capaTgi.eachLayer(layer => capaTgi.resetStyle(layer));
