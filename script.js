@@ -46,9 +46,10 @@ let mostrarPadronesBoton = true;
 let capasEtiquetasPadron = L.layerGroup();
 const ZOOM_MINIMO_PADRON = 17;
 
-// Selección Múltiple
+// Selección Múltiple y Modo Captura para Impresión
 let modoSeleccionMultiple = false;
 let lotesSeleccionadosMultiples = [];
+let modoCapturaImpresion = false;
 
 const formatterARS = new Intl.NumberFormat('es-AR', {
   style: 'currency',
@@ -97,6 +98,15 @@ function resaltarCoincidencia(texto, busqueda) {
   if (!busqueda) return texto;
   const regex = new RegExp(`(${escapeRegExp(busqueda)})`, 'gi');
   return texto.replace(regex, '<mark style="background:#f1c40f;">$1</mark>');
+}
+
+function obtenerDatoGeoJSON(propiedades, claves) {
+  for (let clave of claves) {
+    if (propiedades && propiedades[clave] !== undefined && propiedades[clave] !== null && propiedades[clave] !== "") {
+      return propiedades[clave];
+    }
+  }
+  return "-";
 }
 
 // ==========================================
@@ -177,7 +187,7 @@ function limpiarMontoDeuda(propiedades) {
 }
 
 // ==========================================
-// 6. ESTILOS GEOJSON
+// 6. ESTILOS GEOJSON DE LOTES
 // ==========================================
 function estiloManzanaPorSeccion(feature) {
   const seccion = String(buscarProp(feature.properties, "Seccion") || "0");
@@ -194,6 +204,20 @@ function estiloManzanaPorSeccion(feature) {
 }
 
 function estiloLote(f) {
+  const estaSeleccionado = lotesSeleccionadosMultiples.includes(f);
+
+  if (modoCapturaImpresion) {
+    if (estaSeleccionado) {
+      return { color: "#111111", fillColor: "#ff0055", weight: 2.5, fillOpacity: 0.9, dashArray: null };
+    } else {
+      return { color: "transparent", fillColor: "transparent", weight: 0, fillOpacity: 0 };
+    }
+  }
+
+  if (estaSeleccionado) {
+    return { color: "#111111", fillColor: "#ff0055", weight: 2.5, fillOpacity: 0.9, dashArray: null };
+  }
+
   if (mostrarSinDatosExclusivos) {
     const esSinD = esLoteSinDatos(f.properties);
     return esSinD
@@ -210,11 +234,6 @@ function estiloLote(f) {
       : { color: "#ccc", fillColor: "transparent", weight: 0.5, fillOpacity: 0 };
   }
 
-  const estaSeleccionado = lotesSeleccionadosMultiples.includes(f);
-  if (estaSeleccionado) {
-    return { color: "#ffff00", fillColor: "#ffff00", weight: 3.5, fillOpacity: 0.85 };
-  }
-
   const esMuni = esLoteMunicipal(f.properties);
   if (mostrarSoloMuni) {
     return esMuni 
@@ -226,24 +245,13 @@ function estiloLote(f) {
     return { color: "#1b4f72", fillColor: "#2980b9", weight: 1.5, fillOpacity: 0.6 };
   }
 
-  if (!nombreObraActual) {
-    const deu = limpiarMontoDeuda(f.properties);
-    const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
+  const deu = limpiarMontoDeuda(f.properties);
+  const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
 
-    if (deu <= 0) return { color: "#aaa", fillColor: "transparent", weight: 0.5, fillOpacity: 0.1 };
+  if (deu <= 0) return { color: "#aaa", fillColor: "transparent", weight: 0.5, fillOpacity: 0.1 };
 
-    const col = (mes === 1) ? '#f1c40f' : '#e74c3c';
-    return { color: col, fillColor: col, weight: 1, fillOpacity: 0.6 };
-  }
-
-  const deudaObra = limpiarMontoGenerico(buscarProp(f.properties, "Deuda Obra"));
-  const cuotasAtrasadas = parseInt(buscarProp(f.properties, "Cuotas Atrasadas")) || 0;
-
-  if (deudaObra <= 0 && cuotasAtrasadas <= 0) {
-    return { color: "#2ecc71", fillColor: "#2ecc71", weight: 1.5, fillOpacity: 0.6 };
-  } 
-
-  return { color: "#e74c3c", fillColor: "#e74c3c", weight: 1.5, fillOpacity: 0.6 };
+  const col = (mes === 1) ? '#f1c40f' : '#e74c3c';
+  return { color: col, fillColor: col, weight: 1, fillOpacity: 0.6 };
 }
 
 // ==========================================
@@ -283,7 +291,6 @@ async function cargarDatos() {
     listadoLotesFiltroActual = datosTgi.features;
     dibujarMapa(datosTgi.features);
     inicializarDesplegableSecciones(datosTgi.features);
-    inicializarDesplegableObras(datosTgi.features);
     vincularBotonesBarra();
   } catch (e) {
     console.error("Error cargando tgi.geojson:", e);
@@ -421,7 +428,7 @@ function limpiarMedidasLote() {
 }
 
 // ==========================================
-// 9. CONTROLES Y EVENTOS DE BOTONES
+// 9. CONTROLES Y SELECCIÓN MÚLTIPLE
 // ==========================================
 function toggleModoSinDatos() {
   mostrarSinDatosExclusivos = !mostrarSinDatosExclusivos;
@@ -441,7 +448,7 @@ function toggleModoSinDatos() {
   const btnB = document.getElementById('btnSeleccionarSinDatosBarra');
   const panelTotalizador = document.getElementById('totalizadorSinDatos');
 
-  const textoBtn = mostrarSinDatosExclusivos ? "⚠️️ Sin Datos: PRENDIDO" : "⚠️ Sin Datos: APAGADO";
+  const textoBtn = mostrarSinDatosExclusivos ? "⚠️ Sin Datos: PRENDIDO" : "⚠️ Sin Datos: APAGADO";
 
   if (btnP) {
     btnP.innerHTML = textoBtn;
@@ -479,7 +486,10 @@ function toggleSeleccionLote(feature, layer) {
     lotesSeleccionadosMultiples.push(feature);
   }
 
-  if (capaTgi) capaTgi.resetStyle(layer);
+  if (capaTgi) {
+    capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+  }
+
   const lbl = document.getElementById('lblCantSeleccionados');
   if (lbl) lbl.innerText = lotesSeleccionadosMultiples.length;
 }
@@ -495,7 +505,7 @@ function vincularBotonesBarra() {
         btnTgi.classList.add('activo');
       } else {
         if (capaTgi) map.removeLayer(capaTgi);
-        btnTgi.innerHTML = "🗺 TGI (OFF)";
+        btnTgi.innerHTML = "🗺️ TGI (OFF)";
         btnTgi.classList.remove('activo');
       }
     };
@@ -541,7 +551,7 @@ function vincularBotonesBarra() {
   if (btnMuni) {
     btnMuni.onclick = function () {
       mostrarSoloMuni = !mostrarSoloMuni;
-      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Muni (ON)" : "🏛️️ Muni";
+      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Muni (ON)" : "🏛️ Muni";
       btnMuni.classList.toggle('activo', mostrarSoloMuni);
 
       if (capaTgi) capaTgi.eachLayer(layer => capaTgi.resetStyle(layer));
@@ -580,7 +590,10 @@ function vincularBotonesBarra() {
         lotesSeleccionadosMultiples = [];
         const lbl = document.getElementById('lblCantSeleccionados');
         if (lbl) lbl.innerText = "0";
-        if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+      }
+
+      if (capaTgi) {
+        capaTgi.eachLayer(l => capaTgi.resetStyle(l));
       }
     };
   }
@@ -607,44 +620,24 @@ function calcularTotalBaldios() {
 // ==========================================
 function filtrarTodo() {
   const inputA = document.getElementById('inputApellido');
-  const inputC = document.getElementById('inputCalle');
-
   const apellidoNorm = inputA ? normalizarTexto(inputA.value) : "";
-  const calleInputNorm = inputC ? normalizarTexto(inputC.value) : "";
 
   const sugApp = document.getElementById('listaSugerencias');
-  const sugCalle = document.getElementById('listaSugerenciasCalle');
 
   limpiarMedidasLote();
   ocultarContenedorGraficoGeneral();
   const selSec = document.getElementById('selectSeccion');
-  const selObr = document.getElementById('selectObra');
   if (selSec) selSec.value = "";
-  if (selObr) selObr.value = "";
-  const panelObr = document.getElementById('panelEstadisticaObra');
-  if (panelObr) panelObr.style.display = "none";
 
   if (!datosTgi || !datosTgi.features) return;
 
   listadoLotesFiltroActual = datosTgi.features.filter(f => {
     const nom = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
     const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib"));
-    const dom = normalizarTexto(buscarProp(f.properties, "Ubicacion"));
-    return (nom.includes(apellidoNorm) || padron.includes(apellidoNorm)) && dom.includes(calleInputNorm);
+    return nom.includes(apellidoNorm) || padron.includes(apellidoNorm);
   });
 
   dibujarMapa(listadoLotesFiltroActual);
-
-  if (calleInputNorm.length >= 2) {
-    const callesLimpias = datosTgi.features.map(f => String(buscarProp(f.properties, "Ubicacion") || "").trim());
-    const sugerenciasUnicas = [...new Set(callesLimpias)].filter(c => normalizarTexto(c).includes(calleInputNorm)).sort().slice(0, 8);
-    const htmlC = sugerenciasUnicas.map(c => 
-      `<div class="item-sugerencia" onclick="seleccionarCalle('${escaparHTML(c)}')">KM ${c}</div>`
-    ).join('');
-    if (sugCalle) { sugCalle.innerHTML = htmlC; sugCalle.style.display = htmlC ? "block" : "none"; }
-  } else if (sugCalle) {
-    sugCalle.style.display = "none";
-  }
 
   if (apellidoNorm.length >= 2) {
     const htmlA = listadoLotesFiltroActual.slice(0, 10).map(f => {
@@ -662,11 +655,6 @@ function filtrarTodo() {
     sugApp.style.display = "none";
   }
 }
-
-const inputApp = document.getElementById('inputApellido');
-const inputCal = document.getElementById('inputCalle');
-if (inputApp) inputApp.oninput = filtrarTodo;
-if (inputCal) inputCal.oninput = filtrarTodo;
 
 window.seleccionarCalle = function (nombreCalleLimpia) {
   limpiarMedidasLote();
@@ -712,45 +700,91 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 11. FICHA TÉCNICA
+// 11. FICHA TÉCNICA FLOTANTE
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
   const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
 
-  const esMuni = esLoteMunicipal(p);
-  const d = limpiarMontoDeuda(p);
-  const m = parseInt(buscarProp(p, "Meses Adeud.TGI")) || 0;
+  const partida = decodificarTexto(obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]));
+  const padron = decodificarTexto(obtenerDatoGeoJSON(p, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"]));
+  const titular = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Tit_Nombre", "Nombre", "NOMBRE"]));
+  const dni = decodificarTexto(obtenerDatoGeoJSON(p, ["DNI", "dni", "Dni"]));
+  const ubicacion = decodificarTexto(obtenerDatoGeoJSON(p, ["Ubicacion", "UBICACION", "Direccion", "DIRECCION"]));
+  const manzana = obtenerDatoGeoJSON(p, ["Manzana", "MANZANA"]);
+  const seccion = obtenerDatoGeoJSON(p, ["Seccion", "SECCION"]);
+  const lote = obtenerDatoGeoJSON(p, ["Lote", "LOTE"]);
+  const frente = obtenerDatoGeoJSON(p, ["Frente 1", "Frente", "FRENTE"]);
+  const fondo = obtenerDatoGeoJSON(p, ["Fondo", "FONDO"]);
+  const superficie = obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2"]);
+  const ficha = obtenerDatoGeoJSON(p, ["Ficha Catastral", "FICHA", "Ficha"]);
 
-  const est = esMuni 
-    ? '<span style="color:#2980b9; font-weight:bold;">EXENTO</span>' 
-    : ((d > 0) ? (m === 1 ? '<span class="vencer">A VENCER</span>' : '<span class="deuda">DEUDA</span>') : 'AL DÍA');
+  const deudaRaw = obtenerDatoGeoJSON(p, ["Deuda TGI", "DEUDA_TGI", "Deuda_TGI", "Deuda", "DEUDA"]);
+  const montoDeuda = limpiarMontoGenerico(deudaRaw);
+  const deudaFormateada = formatearMoneda(montoDeuda);
 
-  let html = `<p><span class="etiqueta">Estado TGI:</span> <span class="valor">${est}</span></p>
-              <hr style="border:0; border-top:1px dashed #eee; margin:10px 0;">`;
+  const mesesAdeud = obtenerDatoGeoJSON(p, ["Meses Adeud.TGI", "Meses Adeud_TGI", "MESES_ADEUD", "Meses Adeudados"]);
+  const deudaFecha = decodificarTexto(obtenerDatoGeoJSON(p, ["deudafecha", "DeudaFecha", "Deuda a la Fecha"]));
 
-  for (let k in p) {
-    const clavePrevia = normalizarTexto(k);
-    if (clavePrevia !== "baldio" && clavePrevia !== "nomenc" && clavePrevia !== "referencia") {
-      let valorMostrar = p[k];
-      if (clavePrevia === "deuda tgi" || clavePrevia === "deuda obra") {
-        valorMostrar = esMuni ? "Exento" : formatearMoneda(valorMostrar);
-      }
-      html += `<p><span class="etiqueta">${k}:</span> <span class="valor">${valorMostrar || '-'}</span></p>`;
+  let estadoRaw = obtenerDatoGeoJSON(p, ["Estado TGI", "Estado_TGI", "ESTADO_TGI", "Estado", "EstadoTGI"]);
+  let claseEstado = "al-dia";
+  let textoEstado = "AL DÍA";
+
+  if (estadoRaw !== "-" && estadoRaw !== "") {
+    textoEstado = decodificarTexto(estadoRaw).toUpperCase();
+    if (textoEstado.includes("VENCER")) {
+      claseEstado = "a-vencer";
+    } else if (textoEstado.includes("DEUDA") || textoEstado.includes("DEBE")) {
+      claseEstado = "con-deuda";
+    } else if (textoEstado.includes("DÍA") || textoEstado.includes("DIA")) {
+      claseEstado = "al-dia";
+    }
+  } else {
+    if (montoDeuda > 0) {
+      claseEstado = "con-deuda";
+      textoEstado = "CON DEUDA";
+    } else {
+      claseEstado = "al-dia";
+      textoEstado = "AL DÍA";
     }
   }
 
-  panelFlotante.style.display = "flex";
-  cuerpoFlotante.innerHTML = html;
+  const htmlContenido = `
+    <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
+    <p><strong>PARTIDA:</strong> <span>${partida}</span></p>
+    <p><strong>Padronn:</strong> <span>${padron}</span></p>
+    <p><strong>Tit. Nombre:</strong> <span>${titular}</span></p>
+    <p><strong>DNI:</strong> <span>${dni}</span></p>
+    <p><strong>Ubicación:</strong> <span>${ubicacion}</span></p>
+    <p><strong>Manzana:</strong> <span>${manzana}</span></p>
+    <p><strong>Sección:</strong> <span>${seccion}</span></p>
+    <p><strong>Lote:</strong> <span>${lote}</span></p>
+    <p><strong>Frente 1:</strong> <span>${frente}</span></p>
+    <p><strong>Fondo:</strong> <span>${fondo}</span></p>
+    <p><strong>Superficie:</strong> <span>${superficie}</span></p>
+    <p><strong>Ficha Catastral:</strong> <span>${ficha}</span></p>
+    <p><strong>Deuda TGI:</strong> <span>${deudaFormateada}</span></p>
+    <p><strong>Meses Adeud.TGI:</strong> <span>${mesesAdeud}</span></p>
+    <p><strong>Deuda a la Fecha:</strong> <span>${deudaFecha}</span></p>
+  `;
+
+  if (cuerpoFlotante) {
+    cuerpoFlotante.innerHTML = htmlContenido;
+  }
+  if (panelFlotante) {
+    panelFlotante.style.display = "flex";
+  }
 }
 
-window.cerrarFicha = () => {
-  document.getElementById('panelFichaFlotante').style.display = "none";
-  limpiarMedidasLote();
-};
+function cerrarFicha() {
+  const panelFlotante = document.getElementById('panelFichaFlotante');
+  if (panelFlotante) {
+    panelFlotante.style.display = 'none';
+  }
+}
 
 // ==========================================
-// 12. DESPLEGABLES SECCIONES Y OBRAS
+// 12. DESPLEGABLES SECCIONES
 // ==========================================
 function inicializarDesplegableSecciones(features) {
   const select = document.getElementById('selectSeccion');
@@ -786,50 +820,6 @@ if (selectSec) {
   };
 }
 
-function inicializarDesplegableObras(features) {
-  const select = document.getElementById('selectObra');
-  if (!select) return;
-  const obrasUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Obras") || "").trim()))].filter(o => o !== "" && normalizarTexto(o) !== "null").sort();
-
-  select.innerHTML = '<option value="">🚧 Seleccionar Obra...</option>';
-  obrasUnicas.forEach(o => {
-    const option = document.createElement('option');
-    option.value = o;
-    option.textContent = o;
-    select.appendChild(option);
-  });
-}
-
-const selectObr = document.getElementById('selectObra');
-if (selectObr) {
-  selectObr.onchange = function () {
-    nombreObraActual = this.value;
-    limpiarMedidasLote();
-
-    const panelStatsObra = document.getElementById('panelEstadisticaObra');
-    const btnImpObra = document.getElementById('btnImprimirObra');
-
-    if (!nombreObraActual) {
-      if (panelStatsObra) panelStatsObra.style.display = "none";
-      if (btnImpObra) btnImpObra.style.display = "none";
-      listadoLotesFiltroActual = datosTgi.features;
-      dibujarMapa(datosTgi.features);
-      return;
-    }
-
-    lotesObraActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Obras") || "").trim() === nombreObraActual);
-    listadoLotesFiltroActual = lotesObraActual;
-    
-    dibujarMapa(lotesObraActual);
-    generarEstadisticaObra(lotesObraActual, nombreObraActual);
-
-    if (capaTgi && capaTgi.getLayers().length > 0 && capaTgi.getBounds().isValid()) {
-      map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
-    }
-    if (btnImpObra) btnImpObra.style.display = "block";
-  };
-}
-
 // ==========================================
 // 13. ESTADÍSTICAS Y GRÁFICOS (CHART.JS)
 // ==========================================
@@ -841,7 +831,9 @@ window.ocultarContenedorGraficoGeneral = function() {
 
 window.solicitarGraficoGeneral = function () {
   const contenedor = document.getElementById('contenedorGraficoGeneral');
-  if (contenedor) contenedor.style.display = "block";
+  if (contenedor) {
+    contenedor.style.display = "flex";
+  }
   actualizarGraficoGeneral(listadoLotesFiltroActual);
 };
 
@@ -944,254 +936,303 @@ function generarEstadisticaCalle(features, nombre) {
   });
 }
 
-function generarEstadisticaObra(features, textObra) {
-  let alDia = 0, conDeuda = 0, sumaMontoDeudaObra = 0;
+// ==========================================
+// 14. GENERADOR DE REPORTES PDF Y PLANO HORIZONTAL
+// ==========================================
+window.abrirVistaPreviaPDF = function (titulo, htmlContenido) {
+  const modal = document.getElementById('modalVistaPreviaPDF');
+  const tituloEl = document.getElementById('tituloVistaPreviaPDF');
+  const cuerpoEl = document.getElementById('contenidoVistaPreviaPDF');
 
-  features.forEach(f => {
-    const deudaObra = limpiarMontoGenerico(buscarProp(f.properties, "Deuda Obra"));
-    sumaMontoDeudaObra += deudaObra;
-    const cuotasAtrasadas = parseInt(buscarProp(f.properties, "Cuotas Atrasadas")) || 0;
-    if (deudaObra <= 0 && cuotasAtrasadas <= 0) alDia++; else conDeuda++;
-  });
-
-  const total = features.length;
-  const montoFormat = formatearMoneda(sumaMontoDeudaObra);
-
-  const panelObra = document.getElementById('panelEstadisticaObra');
-  if (panelObra) panelObra.style.display = "block";
-
-  const statsObra = document.getElementById('statsObraContenido');
-  if (statsObra) {
-    statsObra.innerHTML = `
-      <p style="font-size:10px; margin:5px 0;">🚧 <strong>${textObra}</strong></p>
-      <p style="font-size:11px; margin:0;">Lotes afectados: <strong>${total}</strong></p>
-      <p style="font-size:11px; margin: 4px 0; color:#e74c3c;">Deuda Total: <strong>${montoFormat}</strong></p>
-    `;
+  if (modal && cuerpoEl) {
+    if (tituloEl) tituloEl.innerText = titulo;
+    cuerpoEl.innerHTML = htmlContenido;
+    modal.style.display = 'flex';
+  } else {
+    alert("No se encontró el elemento modal 'modalVistaPreviaPDF' en el HTML.");
   }
-
-  if (miGraficoO) miGraficoO.destroy();
-
-  const canvasObra = document.getElementById('graficoObra');
-  if (!canvasObra) return;
-
-  miGraficoO = new Chart(canvasObra, {
-    type: 'doughnut',
-    data: { 
-      labels: ['Al Día', 'Deuda'],
-      datasets: [{ 
-        data: [alDia, conDeuda], 
-        backgroundColor: ['#2ecc71', '#e74c3c'], 
-        borderWidth: 1,
-        borderColor: '#ffffff'
-      }] 
-    },
-    options: { 
-      responsive: true, 
-      maintainAspectRatio: false, 
-      plugins: { 
-        legend: false,
-        datalabels: {
-          color: '#ffffff',
-          font: { weight: 'bold', size: 10 },
-          formatter: (value) => value > 0 ? value : ''
-        }
-      }, 
-      cutout: '65%' 
-    }
-  });
-}
-
-// ==========================================
-// 14. IMPRESIÓN Y INFORMES
-// ==========================================
-window.imprimirObraDirecta = function () {
-  if (!lotesObraActual || lotesObraActual.length === 0) return alert("Seleccione primero una obra válida.");
-
-  let sumaTotal = 0;
-  const HTMLFilasObra = lotesObraActual.map(f => {
-    const p = f.properties;
-    const deuda = limpiarMontoGenerico(buscarProp(p, "Deuda Obra"));
-    sumaTotal += deuda;
-
-    return `<tr>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Padron") || buscarProp(p, "Contrib") || "-"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;"><strong>${buscarProp(p, "Tit. Nombre") || "-"}</strong></td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Ubicacion") || "-"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd; text-align:center;">${parseInt(buscarProp(p, "Cuotas Atrasadas")) || 0}</td>
-              <td style="padding: 8px; border: 1px solid #ddd; text-align:right;">${esLoteMunicipal(p) ? "Exento" : formatearMoneda(deuda)}</td>
-            </tr>`;
-  }).join('');
-
-  const ventana = window.open('', '_blank', 'height=600,width=850');
-  if (!ventana) return alert("Por favor, permite las ventanas emergentes para imprimir.");
-
-  ventana.document.write(`
-    <!DOCTYPE html>
-    <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <title>Obra: ${nombreObraActual}</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
-          h2 { color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 8px; margin-bottom: 5px; }
-          .total { margin-top: 10px; font-weight: bold; font-size: 15px; color: #c0392b; background: #fdf2e9; padding: 10px; border-radius: 4px; display: inline-block; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #2c3e50; color: white; padding: 10px; font-size: 12px; text-align: left; }
-          td { font-size: 12px; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-        </style>
-      </head>
-      <body>
-        <h2>🚧 Informe de Obra: ${nombreObraActual}</h2>
-        <p style="margin: 0; font-size: 13px;">Cantidad de Lotes Afectados: <strong>${lotesObraActual.length}</strong></p>
-        <p class="total">DEUDA TOTAL ACUMULADA: ${formatearMoneda(sumaTotal)}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Padrón</th>
-              <th>Titular</th>
-              <th>Ubicación</th>
-              <th style="text-align: center;">Cuotas Atr.</th>
-              <th style="text-align: right;">Deuda Obra</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${HTMLFilasObra}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  ventana.document.close();
-  ventana.focus();
-  setTimeout(() => { ventana.print(); }, 250);
 };
 
-const btnImpObra = document.getElementById('btnImprimirObra');
-if (btnImpObra) {
-  btnImpObra.onclick = function () { window.imprimirObraDirecta(); };
-}
+window.cerrarVistaPreviaPDF = function () {
+  const modal = document.getElementById('modalVistaPreviaPDF');
+  if (modal) modal.style.display = 'none';
+};
 
-window.imprimirLotesSeleccionados = function () {
-  if (lotesSeleccionadosMultiples.length === 0) return alert("No has seleccionado ningún lote.");
+window.descargarDocumentoPDF = function () {
+  const elemento = document.getElementById('contenidoVistaPreviaPDF');
+  if (!elemento) return;
 
-  const htmlFilas = lotesSeleccionadosMultiples.map(f => {
-    const p = f.properties;
-    return `<tr>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Padron") || buscarProp(p, "Contrib") || "Sin Padrón"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Tit. Nombre") || "Sin Titular"}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${buscarProp(p, "Ubicacion") || "-"}</td>
-            </tr>`;
-  }).join('');
+  const opciones = {
+    margin:       [5, 5, 5, 5],
+    filename:     'Plano_Manzana_Ubicacion.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
 
-  const ventanaImpresion = window.open('', '_blank', 'height=600,width=850');
-  if (!ventanaImpresion) return alert("Por favor, permite las ventanas emergentes para imprimir.");
+  if (typeof html2pdf !== 'undefined') {
+    html2pdf().set(opciones).from(elemento).save();
+  } else {
+    window.imprimirDocumentoPDF();
+  }
+};
+
+window.imprimirDocumentoPDF = function () {
+  const contenido = document.getElementById('contenidoVistaPreviaPDF').innerHTML;
+  const ventanaImpresion = window.open('', '_blank', 'height=750,width=950');
+
+  if (!ventanaImpresion) {
+    window.print();
+    return;
+  }
 
   ventanaImpresion.document.write(`
     <!DOCTYPE html>
     <html lang="es">
       <head>
         <meta charset="UTF-8">
-        <title>Impresión de Lotes Seleccionados</title>
+        <title>Plano de la Manzana / Ubicación</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
-          h2 { color: #2c3e50; border-bottom: 2px solid #ffff00; padding-bottom: 8px; }
-          .total { margin-top: 10px; font-weight: bold; font-size: 14px; color: #16a085; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #2c3e50; color: white; padding: 10px; font-size: 12px; text-align: left; }
-          td { font-size: 12px; }
+          @page { size: A4 landscape; margin: 8mm; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; color: #333; background: #fff; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #2c3e50; color: white; padding: 6px; font-size: 11px; text-align: left; }
+          td { border: 1px solid #ddd; padding: 6px; font-size: 10px; }
           tr:nth-child(even) { background-color: #f9f9f9; }
+          .salto-pagina { page-break-before: always; }
         </style>
       </head>
       <body>
-        <h2>📋 Lotes Seleccionados</h2>
-        <p class="total">Total de lotes seleccionados: ${lotesSeleccionadosMultiples.length}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Padrón</th>
-              <th>Titular</th>
-              <th>Ubicación</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${htmlFilas}
-          </tbody>
-        </table>
+        ${contenido}
       </body>
     </html>
   `);
   ventanaImpresion.document.close();
   ventanaImpresion.focus();
-  setTimeout(() => { ventanaImpresion.print(); }, 250);
+  setTimeout(() => {
+    ventanaImpresion.print();
+    ventanaImpresion.close();
+  }, 500);
 };
 
 window.imprimirLotesMunicipales = function () {
-  if (!datosTgi || !datosTgi.features) return alert("No hay datos cargados en el mapa.");
-
+  if (!datosTgi || !datosTgi.features) return alert("No hay datos cargados.");
+  
   const lotesMuni = datosTgi.features.filter(f => esLoteMunicipal(f.properties));
+  if (lotesMuni.length === 0) return alert("No se encontraron terrenos municipales.");
+  
+  lotesSeleccionadosMultiples = lotesMuni;
+  imprimirLotesSeleccionados();
+};
 
-  if (lotesMuni.length === 0) return alert("No se encontraron lotes pertenecientes a la MUNICIPALIDAD DE RUFINO.");
+window.imprimirLotesSeleccionados = function () {
+  if (typeof lotesSeleccionadosMultiples === 'undefined' || !lotesSeleccionadosMultiples || lotesSeleccionadosMultiples.length === 0) {
+    return alert("No has seleccionado ningún lote en el mapa.");
+  }
 
-  const htmlFilas = lotesMuni.map(f => {
-    const p = f.properties;
-    const padron = buscarProp(p, "Padron") || buscarProp(p, "Contrib") || "-";
-    const titular = buscarProp(p, "Tit. Nombre") || "MUNICIPALIDAD DE RUFINO";
-    const ubicacion = buscarProp(p, "Ubicacion") || "-";
-    const deudaRaw = buscarProp(p, "Deuda TGI");
-    const deudaTGI = (deudaRaw !== "" && deudaRaw !== null && deudaRaw !== undefined) 
-                     ? (isNaN(deudaRaw) ? deudaRaw : formatearMoneda(deudaRaw))
-                     : "Exento";
+  const grupoEtiquetasSeleccionados = L.layerGroup();
 
-    return `<tr>
-              <td style="padding: 8px; border: 1px solid #ddd;">${padron}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${titular}</td>
-              <td style="padding: 8px; border: 1px solid #ddd;">${ubicacion}</td>
-              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${deudaTGI}</td>
-            </tr>`;
+  const htmlFilas = lotesSeleccionadosMultiples.map(f => {
+    const p = f.properties || {};
+    const padron = obtenerDatoGeoJSON(p, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"]);
+    const titular = obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Nombre", "NOMBRE"]);
+    const direccion = obtenerDatoGeoJSON(p, ["Ubicacion", "UBICACION", "Direccion", "DIRECCION"]);
+    const frente = obtenerDatoGeoJSON(p, ["Frente 1", "Frente", "FRENTE", "Medida_Frente", "Ancho"]);
+    const superficie = obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2", "Area"]);
+
+    return `
+      <tr>
+        <td style="padding: 6px 8px; border: 1px solid #b0bec5; text-align: center; font-weight: bold; font-size: 11px;">${padron}</td>
+        <td style="padding: 6px 8px; border: 1px solid #b0bec5; font-size: 11px;"><strong>${titular}</strong></td>
+        <td style="padding: 6px 8px; border: 1px solid #b0bec5; font-size: 11px;">${direccion}</td>
+        <td style="padding: 6px 8px; border: 1px solid #b0bec5; text-align: right; font-size: 11px;">${frente !== "-" ? frente + " m" : "-"}</td>
+        <td style="padding: 6px 8px; border: 1px solid #b0bec5; text-align: right; font-size: 11px;">${superficie !== "-" ? superficie + " m²" : "-"}</td>
+      </tr>
+    `;
   }).join('');
 
-  const ventanaImpresion = window.open('', '_blank', 'height=600,width=850');
-  if (!ventanaImpresion) return alert("Por favor, permite las ventanas emergentes para imprimir.");
+  const grupoCapas = L.featureGroup(
+    lotesSeleccionadosMultiples.map(f => L.geoJSON(f))
+  );
+  map.fitBounds(grupoCapas.getBounds(), { padding: [50, 50] });
 
-  ventanaImpresion.document.write(`
-    <!DOCTYPE html>
-    <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <title>Detalle de Lotes Municipales - Rufino</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
-          h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
-          .total { margin-top: 10px; font-weight: bold; font-size: 14px; color: #2980b9; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #2c3e50; color: white; padding: 10px; font-size: 12px; text-align: left; }
-          td { font-size: 12px; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-        </style>
-      </head>
-      <body>
-        <h2>🏛️ Lotes Municipales ("MUNICIPALIDAD DE RUFINO")</h2>
-        <p class="total">Total de Terrenos Detectados: ${lotesMuni.length}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Padrón</th>
-              <th>Titular</th>
-              <th>Ubicación</th>
-              <th style="text-align: right;">Estado / Deuda TGI</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${htmlFilas}
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  ventanaImpresion.document.close();
-  ventanaImpresion.focus();
-  setTimeout(() => { ventanaImpresion.print(); }, 250);
+  lotesSeleccionadosMultiples.forEach(f => {
+    const p = f.properties || {};
+    const padron = obtenerDatoGeoJSON(p, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"]);
+
+    if (!padron || padron === "-") return;
+
+    try {
+      const capaTemp = L.geoJSON(f);
+      const boundsLote = capaTemp.getBounds();
+      if (!boundsLote || !boundsLote.isValid()) return;
+
+      const centro = boundsLote.getCenter();
+      const nw = boundsLote.getNorthWest();
+      const se = boundsLote.getSouthEast();
+
+      const pxNW = map.latLngToLayerPoint(nw);
+      const pxSE = map.latLngToLayerPoint(se);
+
+      const anchoPx = Math.abs(pxSE.x - pxNW.x);
+      const altoPx = Math.abs(pxSE.y - pxNW.y);
+
+      const esVertical = altoPx > anchoPx;
+      const largoDisponible = esVertical ? altoPx : anchoPx;
+      const cortoDisponible = esVertical ? anchoPx : altoPx;
+
+      const numChars = String(padron).length || 1;
+
+      const fontPorLargo = (largoDisponible / numChars) * 0.8;
+      const fontPorCorto = cortoDisponible * 0.7;
+      const fontSizePx = Math.max(8, Math.min(20, Math.min(fontPorLargo, fontPorCorto)));
+
+      const rotacion = esVertical ? 'transform: rotate(-90deg);' : '';
+
+      const htmlLabel = `
+        <div style="
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent !important;
+          border: none !important;
+        ">
+          <span style="
+            font-size: ${fontSizePx}px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            color: #000000;
+            white-space: nowrap;
+            user-select: none;
+            display: inline-block;
+            ${rotacion}
+          ">${padron}</span>
+        </div>
+      `;
+
+      const iconoPadron = L.divIcon({
+        className: 'etiqueta-padron-orientada',
+        html: htmlLabel,
+        iconSize: [anchoPx, altoPx],
+        iconAnchor: [anchoPx / 2, altoPx / 2]
+      });
+
+      const markerPadron = L.marker(centro, { icon: iconoPadron, interactive: false });
+      grupoEtiquetasSeleccionados.addLayer(markerPadron);
+    } catch (e) {
+      console.warn("Error orientando padrón para el lote:", e);
+    }
+  });
+
+  grupoEtiquetasSeleccionados.addTo(map);
+
+  modoCapturaImpresion = true;
+  if (capaTgi) {
+    capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+  }
+
+  const mapElement = document.getElementById('map');
+
+  if (typeof html2canvas === 'undefined') {
+    modoCapturaImpresion = false;
+    if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+    map.removeLayer(grupoEtiquetasSeleccionados);
+    return alert("Falta la librería html2canvas en index.html");
+  }
+
+  setTimeout(() => {
+    html2canvas(mapElement, {
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      ignoreElements: (element) => element.classList.contains('leaflet-control-container')
+    }).then(canvas => {
+      const imgMapaReal = canvas.toDataURL('image/png');
+
+      modoCapturaImpresion = false;
+      if (capaTgi) {
+        capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+      }
+      map.removeLayer(grupoEtiquetasSeleccionados);
+
+      const fechaActual = new Date();
+      const fechaFormateada = `${fechaActual.getDate()}/${fechaActual.getMonth() + 1}/${fechaActual.getFullYear()}, ${String(fechaActual.getHours()).padStart(2, '0')}:${String(fechaActual.getMinutes()).padStart(2, '0')}`;
+
+      const htmlDocumentoHorizontal = `
+        <div style="font-family: Arial, sans-serif; color: #2c3e50; width: 100%; box-sizing: border-box; background: #ffffff; padding: 10px;">
+          
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="logo.png" style="height: 36px; width: auto; object-fit: contain;" alt="Logo" />
+                <div>
+                  <h1 style="margin: 0; font-size: 16px; font-weight: bold; color: #2c3e50;">Municipalidad de Rufino</h1>
+                  <h2 style="margin: 2px 0 0 0; font-size: 11px; color: #7f8c8d; font-weight: normal;">Planilla Técnica de Lotes Seleccionados</h2>
+                </div>
+              </div>
+              <div style="text-align: right; font-size: 9px; color: #7f8c8d;">
+                <div>${fechaFormateada}</div>
+                <div style="margin-top: 2px;">Impresión A4 - Datos Catastrales</div>
+              </div>
+            </div>
+
+            <div style="width: 100%; height: 2px; background-color: #1abc9c; margin-bottom: 12px;"></div>
+
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background-color: #2c3e50; color: white;">
+                  <th style="padding: 6px; border: 1px solid #2c3e50; text-align: center; font-size: 10px;">Padrón Nº</th>
+                  <th style="padding: 6px; border: 1px solid #2c3e50; text-align: left; font-size: 10px;">Titular</th>
+                  <th style="padding: 6px; border: 1px solid #2c3e50; text-align: left; font-size: 10px;">Dirección / Ubicación</th>
+                  <th style="padding: 6px; border: 1px solid #2c3e50; text-align: right; font-size: 10px;">Frente</th>
+                  <th style="padding: 6px; border: 1px solid #2c3e50; text-align: right; font-size: 10px;">Superficie</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${htmlFilas}
+              </tbody>
+            </table>
+          </div>
+
+          <div style="page-break-before: always;"></div>
+
+          <div style="padding-top: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="logo.png" style="height: 34px; width: auto; object-fit: contain;" alt="Logo" />
+                <div>
+                  <h1 style="margin: 0; font-size: 15px; font-weight: bold; color: #2c3e50;">Plano de la Manzana / Ubicación</h1>
+                  <h2 style="margin: 2px 0 0 0; font-size: 10px; color: #7f8c8d; font-weight: normal;">Vista catastral de los lotes seleccionados</h2>
+                </div>
+              </div>
+              <div style="text-align: right; font-size: 9px; color: #7f8c8d;">
+                <div>${fechaFormateada}</div>
+                <div style="margin-top: 2px;">Impresión A4 Horizontal - Lotes Seleccionados</div>
+              </div>
+            </div>
+
+            <div style="width: 100%; height: 2px; background-color: #1abc9c; margin: 6px 0 10px 0;"></div>
+
+            <div style="width: 100%; border: 1px solid #bdc3c7; box-sizing: border-box; padding: 2px; background: #ffffff; text-align: center;">
+              <img src="${imgMapaReal}" style="width: 100%; max-height: 160mm; object-fit: contain; display: block;" alt="Plano Catastral" />
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      window.abrirVistaPreviaPDF("Plano de la Manzana / Ubicación", htmlDocumentoHorizontal);
+    }).catch(err => {
+      modoCapturaImpresion = false;
+      if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+      map.removeLayer(grupoEtiquetasSeleccionados);
+
+      console.error("Error al capturar mapa:", err);
+      alert("No se pudo capturar la imagen del mapa.");
+    });
+  }, 500);
 };
 
 // ==========================================
@@ -1258,7 +1299,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ==========================================
-// 16. ETIQUETAS DINÁMICAS DE PADRÓN POR ZOOM (DENTRO DEL LOTE Y ESCALABLE)
+// 16. ETIQUETAS DINÁMICAS DE PADRÓN POR ZOOM
 // ==========================================
 function actualizarEtiquetasPadron() {
   capasEtiquetasPadron.clearLayers();
@@ -1307,17 +1348,12 @@ function actualizarEtiquetasPadron() {
 
         if (anchoPx < 6 || altoPx < 6) return;
 
-        // Longitud del texto para controlar desbordes horizontales
         const numCaracteres = String(padron).length;
-
-        // 1. Escalar dinámicamente según el lado menor de la parcela
         const ladoMenor = Math.min(anchoPx, altoPx);
 
-        // 2. Ajustar por número de caracteres para evitar desbordes en padrones largos
         const fontSizeSegunAncho = (anchoPx / numCaracteres) * 1.1;
         const fontSizeSegunLado = ladoMenor * 0.35;
 
-        // 3. Tomar el valor más seguro y aplicar límites (mínimo 8px, máximo 18px)
         const fontSizePx = Math.max(8, Math.min(18, Math.min(fontSizeSegunAncho, fontSizeSegunLado)));
 
         const htmlLabel = `
@@ -1370,5 +1406,27 @@ function actualizarEtiquetasPadron() {
 // Escuchadores de eventos para zoom y movimiento
 map.on('zoomend moveend resize', actualizarEtiquetasPadron);
 
-// Inicialización de la carga de datos al cargar el archivo
+// ==========================================
+// 17. TOGGLE HERRAMIENTAS Y FILTROS
+// ==========================================
+window.toggleHerramientasFiltros = function () {
+  const panel = document.getElementById('panelLateral') || document.querySelector('.barra-herramientas');
+  const btn = document.getElementById('btnToggleFiltros');
+
+  if (!panel) return;
+
+  const estaOculto = panel.classList.toggle('panel-filtros-oculto');
+
+  if (btn) {
+    btn.innerHTML = estaOculto ? "👁️ Mostrar Filtros" : "👁️ Ocultar Filtros";
+  }
+
+  setTimeout(() => {
+    if (typeof map !== 'undefined' && map.invalidateSize) {
+      map.invalidateSize();
+    }
+  }, 300);
+};
+
+// Inicialización
 cargarDatos();

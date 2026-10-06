@@ -7,76 +7,9 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
 
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-      background-color: #f4f6f9;
-      color: #333;
-    }
-
-    /* BARRA SUPERIOR */
-    .barra-superior {
-      height: 55px;
-      background: #1a252f;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 15px;
-      z-index: 1001;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-
-    .logo-titulo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-titulo h1 {
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .controles-rapidos {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-barra {
-      background: #34495e;
-      color: white;
-      border: 1px solid #455a64;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      transition: background 0.2s;
-      white-space: nowrap;
-    }
-
-    .btn-barra:hover {
-      background: #455a64;
-    }
-
-    .btn-barra.activo {
-      background: #2980b9;
-      border-color: #3498db;
-    }
-
     /* BOTÓN ESTILO AMARILLO FLÚOR */
     .btn-amarillo-fluor {
       background-color: #ffff00 !important;
@@ -93,314 +26,92 @@
       transform: scale(1.03);
     }
 
-    /* CONTENEDOR PRINCIPAL */
-    .contenedor-principal {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 55px);
-      position: relative;
-    }
-
-    /* PANEL LATERAL */
-    #panelLateral {
-      width: 340px;
-      background: #ffffff;
-      display: flex;
-      flex-direction: column;
-      z-index: 1000;
-      box-shadow: 2px 0 10px rgba(0,0,0,0.15);
-      transition: margin-left 0.3s ease;
-    }
-
-    #panelLateral.oculto {
-      margin-left: -340px;
-    }
-
-    .header-panel {
-      background: #2c3e50;
-      color: #ffffff;
-      padding: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .header-panel h2 {
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .contenido-panel {
-      padding: 15px;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .barra-herramientas {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 15px;
-    }
-
-    .btn-tool {
-      width: 100%;
-      padding: 9px 12px;
-      background: #ecf0f1;
-      border: 1px solid #bdc3c7;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      color: #2c3e50;
-      text-align: left;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .btn-tool:hover {
-      background: #e2e8f0;
-    }
-
-    .btn-tool.activo {
-      background: #3498db;
-      color: #ffffff;
-      border-color: #2980b9;
-    }
-
-    .btn-accion {
-      background: #27ae60;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-      width: 100%;
-      margin-top: 10px;
-    }
-
-    .btn-accion:hover {
-      background: #219150;
-    }
-
-    /* ACORDEONES */
-    .grupo-acordeon {
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      overflow: hidden;
-      background: #fff;
-    }
-
-    .cabecera-acordeon {
-      background: #f8fafc;
-      padding: 10px 12px;
-      font-size: 13px;
-      font-weight: bold;
-      color: #334155;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-    }
-
-    .cuerpo-acordeon {
-      display: none;
-      padding: 12px;
-      border-top: 1px solid #e2e8f0;
-    }
-
-    .grupo-acordeon.abierto .cuerpo-acordeon {
-      display: block;
-    }
-
-    input[type="text"], select {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
-      font-size: 13px;
-      margin-top: 4px;
-      outline: none;
-    }
-
-    input[type="text"]:focus, select:focus {
-      border-color: #3498db;
-    }
-
-    .contenedor-sugerencias {
-      position: relative;
-    }
-
-    .lista-sugerencias {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: white;
-      border: 1px solid #cbd5e1;
-      border-radius: 0 0 4px 4px;
-      max-height: 220px;
-      overflow-y: auto;
-      z-index: 2000;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
-
-    .item-sugerencia {
-      padding: 8px 10px;
-      font-size: 12px;
-      color: #333;
-      cursor: pointer;
-      border-bottom: 1px solid #f1f5f9;
-    }
-
-    .item-sugerencia:hover {
-      background: #e2e8f0;
-    }
-
-    /* BARRAS Y CAJAS INFORMATIVAS */
-    #panelSeleccionMultiple {
-      display: none;
-      background: #e8f8f5;
-      border: 1px solid #1abc9c;
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 10px;
-      font-size: 12px;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .panel-info {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 10px;
-    }
-
-    .barra-progreso {
-      height: 8px;
-      background: #e2e8f0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 4px;
-      margin-bottom: 8px;
-    }
-
-    .progreso-llenado {
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s;
-    }
-
-    .etiqueta-porcentaje {
-      font-size: 10px;
-      font-weight: bold;
-      color: #64748b;
-    }
-
-    /* MAPA */
-    #map {
-      flex: 1;
-      height: 100%;
-      z-index: 1;
-    }
-
-    .btn-toggle-panel {
-      background: #2c3e50;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    .btn-toggle-panel:hover {
-      background: #34495e;
-    }
-
-    /* FICHA FLOTANTE */
-    #panelFichaFlotante {
-      display: none;
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 320px;
-      max-height: 80vh;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      z-index: 1000;
-      flex-direction: column;
-      overflow: hidden;
-      border: 1px solid #cbd5e1;
-    }
-
-    .cabecera-ficha {
-      background: #2c3e50;
-      color: white;
-      padding: 10px 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: bold;
-      font-size: 13px;
-    }
-
-    .cuerpo-ficha {
-      padding: 15px;
-      overflow-y: auto;
-      font-size: 12px;
-    }
-
-    .cuerpo-ficha p {
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .cuerpo-ficha .etiqueta {
-      color: #64748b;
-      font-weight: 600;
-    }
-
-    .cuerpo-ficha .valor {
-      font-weight: bold;
-      color: #2c3e50;
-    }
-
-    .etiqueta-medida-lote {
-      background: rgba(0, 0, 0, 0.75);
-      border: 1px solid #ffff00;
-      color: #ffff00;
-      font-weight: bold;
-      font-size: 10px;
-      padding: 1px 4px;
+    /* ETIQUETA DE PADRÓN DENTRO DE LA PARCELA */
+    .etiqueta-padron-mapa {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid #34495e;
       border-radius: 3px;
+      color: #1a252f;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      pointer-events: none;
+      white-space: nowrap;
     }
 
     .deuda { color: #e74c3c; font-weight: bold; }
     .vencer { color: #f39c12; font-weight: bold; }
+
+    /* MODAL DE VISTA PREVIA PDF */
+    .modal-pdf {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 5000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-pdf-contenido {
+      background: #ffffff;
+      width: 90%;
+      max-width: 1100px;
+      height: 90vh;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-pdf-header {
+      background: #2c3e50;
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-pdf-acciones {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-pdf {
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .btn-pdf-imprimir { background: #27ae60; color: white; }
+    .btn-pdf-descargar { background: #2980b9; color: white; }
+    .btn-pdf-cerrar { background: #e74c3c; color: white; }
+
+    .modal-pdf-body {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: #fdfdfd;
+    }
   </style>
 </head>
 <body>
 
-  <!-- BARRA SUPERIOR -->
+  <!-- BARRA SUPERIOR DE HERRAMIENTAS -->
   <div class="barra-superior">
     <div class="logo-titulo">
-      <button class="btn-toggle-panel" onclick="togglePanelLateral()">☰</button>
+      <button class="btn-toggle-panel" onclick="togglePanelLateral()" title="Ocultar/Mostrar Panel">☰</button>
       <h1>Catastro TGI Rufino</h1>
     </div>
 
-    <!-- BUSCADOR SUPERIOR -->
+    <!-- BUSCADOR SUPERIOR INTEGRADO -->
     <div style="display: flex; align-items: center; gap: 8px; position: relative;">
       <label for="inputBarraBusqueda" style="font-size: 12px; font-weight: bold; color: #ecf0f1; white-space: nowrap;">
         🔍 Buscar Titular / Padrón:
@@ -420,9 +131,11 @@
 
     <!-- CONTROLES RÁPIDOS SUPERIORES -->
     <div class="controles-rapidos">
-      <button id="btnToggleTGI" class="btn-barra activo">🗺️ TGI</button>
+      <button id="btnToggleTGI" class="btn-barra activo">🗺 TGI</button>
+      <button id="btnToggleEtiquetasPadron" class="btn-barra">🏷️ Padrones</button>
       <button id="btnToggleSatelite" class="btn-barra">🛰️ Satelital</button>
       <button id="btnToggleMuni" class="btn-barra">🏛️ Muni</button>
+      <button id="btnGraficoGeneralBarra" class="btn-barra" onclick="solicitarGraficoGeneral()">📊 Estado General</button>
       <button id="btnSeleccionarSinDatosBarra" class="btn-barra btn-amarillo-fluor">
         ⚠️ Sin Datos: APAGADO
       </button>
@@ -432,14 +145,19 @@
   <!-- CONTENEDOR PRINCIPAL -->
   <div class="contenedor-principal">
 
-    <!-- PANEL LATERAL -->
+    <!-- Botón para ocultar/mostrar la barra de herramientas y filtros -->
+<button id="btnToggleFiltros" class="btn-toggle-filtros" onclick="toggleHerramientasFiltros()">
+  👁️ Ocultar Filtros
+</button>
+
+    <!-- PANEL LATERAL DE FILTROS Y HERRAMIENTAS -->
     <div id="panelLateral">
       <div class="header-panel">
         <h2>Herramientas y Filtros</h2>
       </div>
-
+      
       <div class="contenido-panel">
-        <!-- BOTONES PRINCIPALES -->
+        <!-- BOTONES PRINCIPALES DE ACCIÓN -->
         <div class="barra-herramientas">
           <button id="btnToggleBaldios" class="btn-tool">⬜ Resaltar Baldíos: APAGADO</button>
           <button id="btnSeleccionarSinDatos" class="btn-tool btn-amarillo-fluor">⚠️ Sin Datos: APAGADO</button>
@@ -447,18 +165,12 @@
         </div>
 
         <!-- PANEL INFORMATIVO DE SELECCIÓN MÚLTIPLE -->
-        <div id="panelSeleccionMultiple" style="display: none; flex-direction: column; align-items: stretch; gap: 6px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
-            <div style="display: flex; gap: 4px;">
-              <button class="btn-barra" style="padding: 3px 6px; font-size: 10px;" onclick="imprimirLotesSeleccionados()">🖨️ Imprimir</button>
-              <button class="btn-barra" style="padding: 3px 6px; font-size: 10px; background: #27ae60; border-color: #219150;" onclick="exportarExcelSeleccionados()">📊 Exportar Excel</button>
-            </div>
-          </div>
-          <div id="listaSeleccionadosDetalle"></div>
+        <div id="panelSeleccionMultiple" style="display:none; background:#e8f8f5; border:1px solid #1abc9c; border-radius:6px; padding:10px; margin-bottom:10px; font-size:12px; align-items:center; justify-content:space-between;">
+          <span>Seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
+          <button class="btn-barra" style="padding: 4px 8px; font-size: 11px;" onclick="imprimirLotesSeleccionados()">🖨️ Ver / Imprimir PDF</button>
         </div>
 
-        <!-- TOTALIZADORES -->
+        <!-- TOTALIZADORES EN PANEL LATERAL -->
         <div id="totalizadorBaldios" class="panel-info" style="display: none; background: #eef9f1; border-color: #2ecc71;">
           <p style="font-size: 12px; margin: 0; color: #27ae60; font-weight: bold;">
             🌱 Terrenos Baldíos: <span id="numBaldios">0</span>
@@ -471,43 +183,7 @@
           </p>
         </div>
 
-        <!-- 1. ACORDEÓN: TITULAR / PADRÓN -->
-        <div class="grupo-acordeon" id="grupoApellido">
-          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoApellido')">
-            <span>👤 Buscar por Titular / Padrón</span>
-            <span class="icono-acordeon">►</span>
-          </div>
-          <div class="cuerpo-acordeon">
-            <div class="contenedor-sugerencias">
-              <input type="text" id="inputApellido" placeholder="Ej: Perez, Juan o Padrón..." autocomplete="off" />
-              <div id="listaSugerencias" class="lista-sugerencias"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. ACORDEÓN: CALLE -->
-        <div class="grupo-acordeon" id="grupoCalle">
-          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoCalle')">
-            <span>KM Buscar por Calle</span>
-            <span class="icono-acordeon">►</span>
-          </div>
-          <div class="cuerpo-acordeon">
-            <div class="contenedor-sugerencias">
-              <input type="text" id="inputCalle" placeholder="Nombre de la calle..." autocomplete="off" />
-              <div id="listaSugerenciasCalle" class="lista-sugerencias"></div>
-            </div>
-            
-            <!-- PANEL ESTADÍSTICA CALLE -->
-            <div id="panelEstadisticaCalle" class="panel-info" style="display: none;">
-              <div id="statsCalleContenido"></div>
-              <div style="height: 120px; position: relative; margin-top: 8px;">
-                <canvas id="graficoCalle"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3. ACORDEÓN: SECCIÓN -->
+        <!-- ACORDEÓN: FILTRAR POR SECCIÓN CATASTRAL -->
         <div class="grupo-acordeon" id="grupoSeccion">
           <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoSeccion')">
             <span>🧱 Filtrar por Sección</span>
@@ -519,42 +195,8 @@
             </select>
           </div>
         </div>
-
-        <!-- 4. ACORDEÓN: OBRAS PÚBLICAS -->
-        <div class="grupo-acordeon" id="grupoObra">
-          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoObra')">
-            <span>🚧 Obras Públicas</span>
-            <span class="icono-acordeon">►</span>
-          </div>
-          <div class="cuerpo-acordeon">
-            <select id="selectObra">
-              <option value="">🚧 Seleccionar Obra...</option>
-            </select>
-
-            <!-- PANEL ESTADÍSTICA OBRA -->
-            <div id="panelEstadisticaObra" class="panel-info" style="display: none;">
-              <div id="statsObraContenido"></div>
-              <div style="height: 120px; position: relative; margin-top: 8px;">
-                <canvas id="graficoObra"></canvas>
-              </div>
-              <button id="btnImprimirObra" class="btn-accion" style="display: none; font-size: 11px; padding: 6px;">
-                🖨️ Imprimir Informe Obra
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. ESTADÍSTICA GENERAL -->
-        <div style="margin-top: 15px;">
-          <button class="btn-tool" onclick="solicitarGraficoGeneral()">📊 Graficar Estado General</button>
-          <div id="contenedorGraficoGeneral" class="panel-info" style="display: none;">
-            <div style="height: 150px; position: relative;">
-              <canvas id="graficoBarras"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- BOTÓN IMPRIMIR MUNI -->
+               
+        <!-- BOTÓN DE IMPRESIÓN MUNICIPAL -->
         <button class="btn-accion" style="background:#2980b9;" onclick="imprimirLotesMunicipales()">
           🏛️ Imprimir Terrenos Muni
         </button>
@@ -567,7 +209,7 @@
 
   </div>
 
-  <!-- FICHA FLOTANTE -->
+  <!-- FICHA TÉCNICA CATASTRAL FLOTANTE -->
   <div id="panelFichaFlotante">
     <div class="cabecera-ficha">
       <span>Ficha Catastral</span>
@@ -576,11 +218,41 @@
     <div id="cuerpoFichaContenido" class="cuerpo-ficha"></div>
   </div>
 
-  <!-- LEAFLET JS Y CHART JS -->
+  <!-- PANEL GRÁFICO FLOTANTE COMPACTO -->
+  <div id="contenedorGraficoGeneral" class="panel-flotante-grafico" style="display: none;">
+    <div class="encabezado-ficha">
+      <h3>📊 Estado General</h3>
+      <button class="btn-cerrar" onclick="ocultarContenedorGraficoGeneral()">✕</button>
+    </div>
+    <div class="cuerpo-grafico-flotante">
+      <canvas id="graficoBarras"></canvas>
+    </div>
+  </div>
+
+  <!-- MODAL DE VISTA PREVIA PDF -->
+  <div id="modalVistaPreviaPDF" class="modal-pdf">
+    <div class="modal-pdf-contenido">
+      <div class="modal-pdf-header">
+        <h3 id="tituloVistaPreviaPDF">📄 Vista Previa de Documento PDF</h3>
+        <div class="modal-pdf-acciones">
+          <button class="btn-pdf btn-pdf-imprimir" onclick="imprimirDocumentoPDF()">🖨️ Imprimir</button>
+          <button class="btn-pdf btn-pdf-descargar" onclick="descargarDocumentoPDF()">💾 Descargar PDF</button>
+          <button class="btn-pdf btn-pdf-cerrar" onclick="cerrarVistaPreviaPDF()">✕ Cerrar</button>
+        </div>
+      </div>
+      <div id="contenidoVistaPreviaPDF" class="modal-pdf-body"></div>
+    </div>
+  </div>
+
+  <!-- LIBRERÍAS EXTERNAS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- LIBRERÍAS DE GENERACIÓN DE PDF Y CAPTURA HTML2CANVAS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
   <script src="script.js"></script>
 </body>
 </html>
