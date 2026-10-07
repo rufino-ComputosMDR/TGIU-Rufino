@@ -17,7 +17,7 @@
   }
   
   /* ==========================================
-     BARRA SUPERIOR DE HERRAMIENTAS
+     BARRA SUPERIOR DE HERRAMIENTAS Y LOGO
      ========================================== */
   .barra-superior {
     height: 50px;
@@ -35,6 +35,12 @@
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+  
+  .logo-header {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
   }
   
   .logo-titulo h1 {
@@ -84,6 +90,17 @@
     background-color: #2980b9;
     color: #fff;
     border-color: #3498db;
+  }
+
+  .btn-ayuda {
+    background-color: #e67e22 !important;
+    color: #ffffff !important;
+    border-color: #d35400 !important;
+    font-weight: bold;
+  }
+
+  .btn-ayuda:hover {
+    background-color: #d35400 !important;
   }
   
   /* ==========================================
@@ -225,7 +242,6 @@
     box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
   }
   
-  /* Desplegable de sugerencias */
   .lista-sugerencias,
   .ui-autocomplete,
   .autocomplete-suggestions {
@@ -243,7 +259,6 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
   }
   
-  /* Ítems del resultado */
   .item-sugerencia,
   .ui-menu-item,
   .autocomplete-suggestion {
@@ -262,7 +277,6 @@
     color: #1a252f !important;
   }
   
-  /* Resaltado de coincidencia (Fondo amarillo con texto negro) */
   .lista-sugerencias mark,
   .item-sugerencia mark,
   .ui-autocomplete mark,
@@ -277,7 +291,7 @@
   }
   
   /* ==========================================
-     ESTADOS TGI (COLORES DINÁMICOS)
+     ESTADOS TGI
      ========================================== */
   .badge-tgi {
     display: inline-block;
@@ -290,20 +304,17 @@
     letter-spacing: 0.5px;
   }
   
-  /* AL DÍA -> Verde */
   .badge-tgi.al-dia {
     background-color: #2ecc71;
     border: 1px solid #27ae60;
   }
   
-  /* A VENCER -> Amarillo */
   .badge-tgi.a-vencer {
     background-color: #f1c40f;
     color: #2c3e50 !important;
     border: 1px solid #d4ac0d;
   }
   
-  /* CON DEUDA -> Rojo */
   .badge-tgi.con-deuda {
     background-color: #e74c3c;
     border: 1px solid #c0392b;
@@ -433,28 +444,134 @@
     pointer-events: none;
     white-space: nowrap;
   }
-  /* Estilo del botón toggle */
-.btn-toggle-filtros {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  background-color: #2c3e50;
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: bold;
-  transition: background-color 0.2s ease;
-}
+  
+  .btn-toggle-filtros {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background-color: #2c3e50;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+  }
+  
+  .btn-toggle-filtros:hover {
+    background-color: #34495e;
+  }
+  
+  .panel-filtros-oculto {
+    display: none !important;
+  }
+  /* ==========================================
+   ADAPTACIÓN PARA DISPOSITIVOS MÓVILES (RESPONSIVE)
+   ========================================== */
 
-.btn-toggle-filtros:hover {
-  background-color: #34495e;
-}
+@media (max-width: 768px) {
+  /* 1. BARRA SUPERIOR */
+  .barra-superior {
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 10px;
+    gap: 8px;
+  }
 
-/* Clase para ocultar el panel de herramientas/filtros */
-.panel-filtros-oculto {
-  display: none !important;
+  .logo-titulo {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .logo-titulo h1 {
+    font-size: 13px;
+  }
+
+  /* Buscador adaptable en móviles */
+  .barra-superior > div[style*="display: flex"] {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .barra-superior > div[style*="display: flex"] > div {
+    width: 100% !important;
+  }
+
+  /* Botones de acción rápida en grid responsivo */
+  .controles-rapidos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: 100%;
+  }
+
+  .btn-barra {
+    padding: 8px 4px;
+    font-size: 10px;
+    text-align: center;
+  }
+
+  /* 2. ESTRUCTURA Y PANEL LATERAL OVERLAY */
+  .contenedor-principal {
+    height: calc(100vh - 120px); /* Ajuste por altura incrementada de barra superior */
+  }
+
+  .panel-lateral {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 85%;
+    max-width: 300px;
+    z-index: 3000;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+    margin-left: -100%; /* Oculto por defecto en celular */
+  }
+
+  .panel-lateral:not(.oculto) {
+    margin-left: 0; /* Desplegado al pulsar ☰ */
+  }
+
+  /* 3. FICHA TÉCNICA Y GRÁFICO FLOTANTE */
+  #panelFichaFlotante {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    width: auto !important;
+    max-height: 50vh !important;
+  }
+
+  .panel-flotante-grafico {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    width: auto !important;
+    height: 250px !important;
+  }
+
+  /* 4. MODALES Y TABLAS EN MÓVIL */
+  .modal-pdf-contenido {
+    width: 95% !important;
+    height: 95vh !important;
+  }
+
+  .modal-pdf-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .modal-pdf-acciones {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tarjetas-semaforo-compactas {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
 }

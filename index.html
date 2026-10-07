@@ -44,12 +44,13 @@
     .deuda { color: #e74c3c; font-weight: bold; }
     .vencer { color: #f39c12; font-weight: bold; }
 
-    /* MODAL DE VISTA PREVIA PDF */
+    /* MODALES GENERALES */
     .modal-pdf {
       display: none;
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.7);
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
       z-index: 5000;
       align-items: center;
       justify-content: center;
@@ -60,15 +61,15 @@
       width: 90%;
       max-width: 1100px;
       height: 90vh;
-      border-radius: 8px;
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 
     .modal-pdf-header {
-      background: #2c3e50;
+      background: #1e293b;
       color: white;
       padding: 12px 20px;
       display: flex;
@@ -83,22 +84,149 @@
 
     .btn-pdf {
       padding: 6px 14px;
-      border-radius: 4px;
+      border-radius: 6px;
       border: none;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
+      transition: all 0.2s ease;
     }
 
-    .btn-pdf-imprimir { background: #27ae60; color: white; }
-    .btn-pdf-descargar { background: #2980b9; color: white; }
-    .btn-pdf-cerrar { background: #e74c3c; color: white; }
+    .btn-pdf-imprimir { background: #10b981; color: white; }
+    .btn-pdf-descargar { background: #3b82f6; color: white; }
+    .btn-pdf-cerrar { background: #ef4444; color: white; }
 
     .modal-pdf-body {
       flex: 1;
       padding: 20px;
       overflow-y: auto;
-      background: #fdfdfd;
+      background: #f8fafc;
+    }
+
+    /* ESTILOS DE TABLA INFORME */
+    .tabla-informe-obras {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .tabla-informe-obras th {
+      background-color: #1e293b;
+      color: white;
+      padding: 8px 10px;
+      text-align: left;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .tabla-informe-obras td {
+      border: 1px solid #e2e8f0;
+      padding: 7px 10px;
+      color: #334155;
+    }
+
+    .tabla-informe-obras tr:nth-child(even) { background-color: #f1f5f9; }
+    .tabla-informe-obras tr:hover { background-color: #e2e8f0; cursor: pointer; }
+
+    .badge-semaforo {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 10px;
+      color: #fff;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .sem-verde { background-color: #10b981; }
+    .sem-amarillo { background-color: #f59e0b; color: #1e293b; }
+    .sem-rojo { background-color: #ef4444; }
+
+    /* ESTILOS DE TARJETAS Y MODAL DE SEMÁFORO COMPACTO Y ELEGANTE */
+    .tarjetas-semaforo-compactas {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .card-semaforo-mini {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border-left: 5px solid #cbd5e1;
+    }
+
+    .card-semaforo-mini.al-dia { border-left-color: #10b981; }
+    .card-semaforo-mini.vencer { border-left-color: #f59e0b; }
+    .card-semaforo-mini.deuda { border-left-color: #ef4444; }
+
+    .card-semaforo-mini .header-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-semaforo-mini .cant {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 2px 0;
+    }
+
+    .card-semaforo-mini .monto {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    /* ESTILOS MODAL AYUDA */
+    .grid-ayuda {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .item-ayuda {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    }
+
+    .item-ayuda-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 6px;
+    }
+
+    .item-ayuda-header strong {
+      font-size: 13px;
+      color: #1e293b;
+    }
+
+    .item-ayuda p {
+      font-size: 11px;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.4;
     }
   </style>
 </head>
@@ -107,20 +235,21 @@
   <!-- BARRA SUPERIOR DE HERRAMIENTAS -->
   <div class="barra-superior">
     <div class="logo-titulo">
-      <button class="btn-toggle-panel" onclick="togglePanelLateral()" title="Ocultar/Mostrar Panel">☰</button>
+      <button class="btn-toggle-panel" onclick="togglePanelLateral()" title="Ocultar/Mostrar Panel Lateral">☰</button>
+      <img src="logo.png" alt="Logo Rufino" class="logo-header" onerror="this.style.display='none'" />
       <h1>Catastro TGI Rufino</h1>
     </div>
 
     <!-- BUSCADOR SUPERIOR INTEGRADO -->
-    <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+    <div style="display: flex; align-items: center; gap: 8px; position: relative; flex-shrink: 0;">
       <label for="inputBarraBusqueda" style="font-size: 12px; font-weight: bold; color: #ecf0f1; white-space: nowrap;">
         🔍 Buscar Titular / Padrón:
       </label>
-      <div style="position: relative; width: 280px;">
+      <div style="position: relative; width: 220px;">
         <input 
           type="text" 
           id="inputBarraBusqueda" 
-          placeholder="Ingrese Apellido, Nombre o Padrón..." 
+          placeholder="Ingrese Apellido o Padrón..." 
           autocomplete="off" 
           style="margin:0; background:#2c3e50; color:#fff; border: 1px solid #455a64; padding: 6px 10px; border-radius: 4px; width: 100%;" 
           oninput="ejecutarBusquedaBarra(this.value)" 
@@ -139,19 +268,15 @@
       <button id="btnSeleccionarSinDatosBarra" class="btn-barra btn-amarillo-fluor">
         ⚠️ Sin Datos: APAGADO
       </button>
+      <button id="btnAyuda" class="btn-barra btn-ayuda" onclick="abrirModalAyuda()">❓ Ayuda</button>
     </div>
   </div>
 
   <!-- CONTENEDOR PRINCIPAL -->
   <div class="contenedor-principal">
 
-    <!-- Botón para ocultar/mostrar la barra de herramientas y filtros -->
-<button id="btnToggleFiltros" class="btn-toggle-filtros" onclick="toggleHerramientasFiltros()">
-  👁️ Ocultar Filtros
-</button>
-
     <!-- PANEL LATERAL DE FILTROS Y HERRAMIENTAS -->
-    <div id="panelLateral">
+    <div id="panelLateral" class="panel-lateral">
       <div class="header-panel">
         <h2>Herramientas y Filtros</h2>
       </div>
@@ -183,21 +308,41 @@
           </p>
         </div>
 
-        <!-- ACORDEÓN: FILTRAR POR SECCIÓN CATASTRAL -->
-        <div class="grupo-acordeon" id="grupoSeccion">
-          <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoSeccion')">
-            <span>🧱 Filtrar por Sección</span>
-            <span class="icono-acordeon">►</span>
-          </div>
-          <div class="cuerpo-acordeon">
-            <select id="selectSeccion">
-              <option value="">🧱 Seleccionar Sección...</option>
-            </select>
+       <!-- ACORDEÓN: FILTRO POR OBRA (CSV) -->
+       <div class="grupo-acordeon" id="grupoObras">
+        <div class="cabecera-acordeon" onclick="toggleAcordeon('grupoObras')">
+          <span>🚧 Filtrar por Obra (Concepto)</span>
+          <span class="icono-acordeon">►</span>
+        </div>
+        <div class="cuerpo-acordeon">
+          <label style="font-size: 11px; font-weight: bold; color: #2c3e50;">Seleccionar Obra:</label>
+          <select id="selectObraConcepto" style="margin-top: 5px; width: 100%;" onchange="filtrarYMostrarObraEnMapa(this.value)">
+            <option value="">🚧 Cargando obras...</option>
+          </select>
+
+          <!-- Resumen de lotes y deuda de la obra seleccionada -->
+          <div id="infoObraSeleccionada" style="margin-top: 10px; font-size: 11px; color: #2c3e50; display: none; background: #ebf5fb; padding: 10px; border-radius: 6px; border: 1px solid #aed6f1;">
+            <p style="margin-bottom: 4px;">📍 Lotes afectados: <strong id="cantLotesObra">0</strong></p>
+            <p style="margin-bottom: 4px;">💰 Total Deuda de la Obra: <strong id="montoDeudaObra" style="color: #c0392b;">$0</strong></p>
+            <p style="margin-bottom: 8px; color: #2563eb; font-weight: bold; background: #dbeafe; padding: 3px 6px; border-radius: 4px; display: inline-block;">
+              📅 Deudas a la Fecha: <span id="fechaDeudaAF2Panel">-</span>
+            </p>
+            
+            <!-- BOTONES DE INFORME Y GRÁFICO TIPO SEMÁFORO -->
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px; border-top: 1px dashed #aed6f1; padding-top: 8px;">
+              <button class="btn-accion" style="background:#27ae60; font-size:11px; padding:7px;" onclick="abrirInformeObrasModal()">
+                📋 Ver Informe Detallado de Obras
+              </button>
+              <button class="btn-accion" style="background:#e67e22; font-size:11px; padding:7px;" onclick="abrirGraficoEstadoDeudaSemaforoModal()">
+                🚦 Gráfico Semáforo Estado de Deuda
+              </button>
+            </div>
           </div>
         </div>
-               
+      </div>
+
         <!-- BOTÓN DE IMPRESIÓN MUNICIPAL -->
-        <button class="btn-accion" style="background:#2980b9;" onclick="imprimirLotesMunicipales()">
+        <button class="btn-accion" style="background:#2980b9; margin-top: 10px;" onclick="imprimirLotesMunicipales()">
           🏛️ Imprimir Terrenos Muni
         </button>
 
@@ -218,10 +363,15 @@
     <div id="cuerpoFichaContenido" class="cuerpo-ficha"></div>
   </div>
 
-  <!-- PANEL GRÁFICO FLOTANTE COMPACTO -->
-  <div id="contenedorGraficoGeneral" class="panel-flotante-grafico" style="display: none;">
+  <!-- PANEL GRÁFICO FLOTANTE COMPACTO DE ESTADO GENERAL -->
+  <div id="contenedorGraficoGeneral" class="panel-flotante-grafico" style="display: none; height: 300px !important;">
     <div class="encabezado-ficha">
-      <h3>📊 Estado General</h3>
+      <div>
+        <h3 style="margin: 0; font-size: 13px;">📊 Estado General</h3>
+        <span id="leyendaFechaGraficoGeneral" style="font-size: 10px; color: #60a5fa; font-weight: bold; display: block; margin-top: 2px;">
+          Deudas a la Fecha: -
+        </span>
+      </div>
       <button class="btn-cerrar" onclick="ocultarContenedorGraficoGeneral()">✕</button>
     </div>
     <div class="cuerpo-grafico-flotante">
@@ -244,12 +394,219 @@
     </div>
   </div>
 
+  <!-- MODAL PARA INFORME LISTADO DE OBRAS -->
+  <div id="modalInformeObras" class="modal-pdf">
+    <div class="modal-pdf-contenido" style="max-width: 1200px;">
+      <div class="modal-pdf-header">
+        <h3 id="tituloInformeObras">📋 Informe de Obras - Listado de Deuda</h3>
+        <div class="modal-pdf-acciones">
+          <button class="btn-pdf btn-pdf-imprimir" onclick="imprimirInformeObras()">🖨️ Imprimir Listado</button>
+          <button class="btn-pdf btn-pdf-cerrar" onclick="cerrarInformeObrasModal()">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="modal-pdf-body">
+        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; background: #e2e8f0; padding: 10px 15px; border-radius: 6px;">
+          <div>
+            <strong id="subtituloObraInforme" style="font-size: 14px; color: #1e293b;">Obra: Todas las Obras</strong><br>
+            <span id="resumenTotalesInforme" style="font-size: 12px; color: #64748b;">Cargando resumen...</span><br>
+            <span id="leyendaFechaInformeObras" style="font-size: 11px; font-weight: bold; color: #2563eb;">Deudas a la Fecha: -</span>
+          </div>
+          <div>
+            <input type="text" id="filtroTablaInforme" placeholder="🔎 Filtrar en la tabla..." onkeyup="filtrarTablaInformeObras(this.value)" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 220px;" />
+          </div>
+        </div>
+
+        <div style="overflow-x: auto; max-height: calc(80vh - 120px);">
+          <table class="tabla-informe-obras" id="tablaInformeObrasElement">
+            <thead>
+              <tr>
+                <th style="width: 10%;">Padrón</th>
+                <th style="width: 25%;">Titular</th>
+                <th style="width: 25%;">Concepto (Obra)</th>
+                <th style="width: 10%; text-align: center;">Ctas Totales</th>
+                <th style="width: 10%; text-align: center;">Ctas Deuda</th>
+                <th style="width: 10%; text-align: center;">Estado</th>
+                <th style="width: 10%; text-align: right;">Total Adeudado</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoTablaInformeObras">
+              <!-- Filas generadas dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL COMPACTO Y ELEGANTE DE GRÁFICO SEMÁFORO DE OBRAS -->
+  <div id="modalSemaforoObras" class="modal-pdf">
+    <div class="modal-pdf-contenido" style="max-width: 540px; height: auto; border-radius: 14px;">
+      <div class="modal-pdf-header" style="padding: 12px 16px; background: #0f172a;">
+        <h3 id="tituloSemaforoObras" style="font-size: 14px; font-weight: 700;">🚦 Estado de Deuda de la Obra</h3>
+        <div class="modal-pdf-acciones">
+          <button class="btn-pdf btn-pdf-cerrar" onclick="cerrarSemaforoObrasModal()">✕</button>
+        </div>
+      </div>
+      <div class="modal-pdf-body" style="padding: 16px; background: #ffffff;">
+        <div style="margin-bottom: 12px;">
+          <h4 id="subtituloSemaforo" style="margin:0; color:#0f172a; font-size:13px; font-weight:700;">Análisis por Cuotas Pendientes</h4>
+          <span style="font-size:11px; color:#64748b;">Distribución semafórica de cuotas adeudadas</span><br>
+          <span id="leyendaFechaSemaforoObras" style="font-size: 11px; font-weight: bold; color: #2563eb; display: inline-block; margin-top: 4px;">Deudas a la Fecha: -</span>
+        </div>
+
+        <!-- Tarjetas Indicadores Semáforo Compactas -->
+        <div class="tarjetas-semaforo-compactas">
+          <div class="card-semaforo-mini al-dia">
+            <div class="header-card">
+              <span>Al Día</span>
+              <span style="color:#10b981;">🟢</span>
+            </div>
+            <div class="cant" id="semCantVerde">0</div>
+            <div class="monto" id="semMontoVerde">$0.00</div>
+          </div>
+
+          <div class="card-semaforo-mini vencer">
+            <div class="header-card">
+              <span>1-2 Ctas</span>
+              <span style="color:#f59e0b;">🟡</span>
+            </div>
+            <div class="cant" id="semCantAmarillo">0</div>
+            <div class="monto" id="semMontoAmarillo">$0.00</div>
+          </div>
+
+          <div class="card-semaforo-mini deuda">
+            <div class="header-card">
+              <span>≥3 Ctas</span>
+              <span style="color:#ef4444;">🔴</span>
+            </div>
+            <div class="cant" id="semCantRojo">0</div>
+            <div class="monto" id="semMontoRojo">$0.00</div>
+          </div>
+        </div>
+
+        <!-- Canvas Reducido para Gráfico Tipo Rosquilla Elegante -->
+        <div style="height: 180px; position: relative; width: 100%; display: flex; justify-content: center; align-items: center; margin-top: 5px;">
+          <canvas id="canvasGraficoSemaforo"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL GUÍA DE AYUDA DEL SISTEMA -->
+  <div id="modalAyudaSistema" class="modal-pdf">
+    <div class="modal-pdf-contenido" style="max-width: 900px; height: 85vh;">
+      <div class="modal-pdf-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+          <img src="logo.png" style="height:24px; filter: brightness(0) invert(1);" alt="Logo" onerror="this.style.display='none'"/> 
+          📖 Manual de Funciones y Botones
+        </h3>
+        <div class="modal-pdf-acciones">
+          <button class="btn-pdf btn-pdf-cerrar" onclick="cerrarModalAyuda()">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="modal-pdf-body">
+        <p style="font-size:12px; color:#475569; margin-bottom:15px;">
+          A continuación se describe la función de cada botón y herramienta disponible en el sistema para facilitar la navegación y el análisis catastral:
+        </p>
+
+        <div class="grid-ayuda">
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-barra activo" style="pointer-events:none;">🗺️ TGI</button>
+              <strong>Capa TGI / Catastro</strong>
+            </div>
+            <p>Muestra u oculta la capa principal de parcelas de TGI en el mapa interactivo.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-barra" style="pointer-events:none;">🏷️ Padrones</button>
+              <strong>Etiquetas de Padrones</strong>
+            </div>
+            <p>Activa o desactiva la visualización de los números de padrón sobre las parcelas al hacer zoom cercano en el mapa.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-barra" style="pointer-events:none;">🛰️ Satelital</button>
+              <strong>Vista Satelital</strong>
+            </div>
+            <p>Alterna entre el mapa base vectorial (calles) y la ortofoto/imagen satelital de alta resolución.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-barra" style="pointer-events:none;">🏛️ Muni</button>
+              <strong>Inmuebles Municipales</strong>
+            </div>
+            <p>Filtra y destaca de forma exclusiva los terrenos pertenecientes a la Municipalidad de Rufino.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-barra" style="pointer-events:none;">📊 Estado General</button>
+              <strong>Gráfico Estadístico</strong>
+            </div>
+            <p>Abre el panel gráfico flotante para visualizar la distribución general de morosidad y cumplimiento tributario.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-barra btn-amarillo-fluor" style="pointer-events:none;">⚠️ Sin Datos</button>
+              <strong>Filtro Lotes Sin Datos</strong>
+            </div>
+            <p>Resalta de manera inmediata en color amarillo flúor aquellos parcelamientos que no poseen información catastral registrada.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-tool" style="pointer-events:none;">⬜ Resaltar Baldíos</button>
+              <strong>Filtro de Baldíos</strong>
+            </div>
+            <p>Destaca en verde brillante todos los terrenos baldíos identificados dentro del distrito.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-tool" style="pointer-events:none;">🔲 Selección Múltiple</button>
+              <strong>Selección de Parcelas</strong>
+            </div>
+            <p>Permite seleccionar múltiples parcelas haciendo clic individualmente sobre ellas para luego generar informes o exportar planos PDF conjunto.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-accion" style="background:#27ae60; width:auto; font-size:10px; padding:4px 8px; pointer-events:none;">📋 Informe Detallado</button>
+              <strong>Informe de Obras</strong>
+            </div>
+            <p>Abre el listado completo y la tabla interactiva de parcelas afectadas por obras de contribución de mejoras.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-accion" style="background:#e67e22; width:auto; font-size:10px; padding:4px 8px; pointer-events:none;">🚦 Gráfico Semáforo</button>
+              <strong>Análisis Semáforo</strong>
+            </div>
+            <p>Muestra el resumen gráfico tipo semáforo de cuotas adeudadas por concepto de obra pública.</p>
+          </div>
+
+          <div class="item-ayuda">
+            <div class="item-ayuda-header">
+              <button class="btn-accion" style="background:#2980b9; width:auto; font-size:10px; padding:4px 8px; pointer-events:none;">🏛️ Imprimir Terrenos Muni</button>
+              <strong>Plano Inmuebles Muni</strong>
+            </div>
+            <p>Genera y exporta la planilla y vista panorámica en PDF de todos los terrenos de propiedad municipal.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- LIBRERÍAS EXTERNAS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-  
-  <!-- LIBRERÍAS DE GENERACIÓN DE PDF Y CAPTURA HTML2CANVAS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   

@@ -30,6 +30,7 @@ let capaTgi = null;
 let miGraficoG = null;
 let miGraficoC = null;
 let miGraficoO = null;
+let miGraficoSemaforo = null;
 
 let lotesObraActual = [];
 let nombreObraActual = "";
@@ -40,6 +41,10 @@ let mostrarSoloMuni = false;
 let mostrarCapaTgi = true;
 let listadoLotesFiltroActual = [];
 let loteSeleccionadoActual = null;
+
+// Fechas de Deuda
+let fechaDeudaAF2 = "No especificada";
+let fechaDeudaGeoJSON = "No especificada";
 
 // Control de Etiquetas de Padrón / Contribuyente
 let mostrarPadronesBoton = true;
@@ -110,7 +115,7 @@ function obtenerDatoGeoJSON(propiedades, claves) {
 }
 
 // ==========================================
-// 4. UI Y NAVEGACIÓN
+// 4. UI, NAVEGACIÓN Y AYUDA
 // ==========================================
 window.toggleAcordeon = function (idGrupo) {
   const el = document.getElementById(idGrupo);
@@ -140,6 +145,16 @@ window.togglePanelLateral = function () {
       }
     }, 300);
   }
+};
+
+window.abrirModalAyuda = function() {
+  const modal = document.getElementById('modalAyudaSistema');
+  if (modal) modal.style.display = 'flex';
+};
+
+window.cerrarModalAyuda = function() {
+  const modal = document.getElementById('modalAyudaSistema');
+  if (modal) modal.style.display = 'none';
 };
 
 // ==========================================
@@ -286,6 +301,12 @@ async function cargarDatos() {
           }
         }
       });
+
+      // Obtener la propiedad deudafecha del primer elemento del GeoJSON
+      const loteConFecha = datosTgi.features.find(f => f.properties && (f.properties.deudafecha || f.properties.DeudaFecha || f.properties["Deuda a la Fecha"]));
+      if (loteConFecha) {
+        fechaDeudaGeoJSON = decodificarTexto(obtenerDatoGeoJSON(loteConFecha.properties, ["deudafecha", "DeudaFecha", "Deuda a la Fecha"]));
+      }
     }
 
     listadoLotesFiltroActual = datosTgi.features;
@@ -680,7 +701,7 @@ window.seleccionarCalle = function (nombreCalleLimpia) {
 
 window.seleccionarLotePorPadron = function (padronVal) {
   const lote = datosTgi.features.find(f => 
-    String(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib")) === String(padronVal)
+    String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib")).trim() === String(padronVal).trim()
   );
 
   if (lote) {
@@ -690,7 +711,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
     mostrarFicha(lote.properties);
     if (capaTgi) {
       capaTgi.eachLayer(l => {
-        if (String(buscarProp(l.feature.properties, "Padron") || buscarProp(l.feature.properties, "Contrib")) === String(padronVal)) {
+        if (String(buscarProp(l.feature.properties, "Padronn") || buscarProp(l.feature.properties, "Padron") || buscarProp(l.feature.properties, "Contrib")).trim() === String(padronVal).trim()) {
           l.bringToFront();
           l.fire('click');
         }
@@ -831,6 +852,12 @@ window.ocultarContenedorGraficoGeneral = function() {
 
 window.solicitarGraficoGeneral = function () {
   const contenedor = document.getElementById('contenedorGraficoGeneral');
+  const leyendaFecha = document.getElementById('leyendaFechaGraficoGeneral');
+
+  if (leyendaFecha) {
+    leyendaFecha.innerText = `Deudas a la Fecha: ${fechaDeudaGeoJSON}`;
+  }
+
   if (contenedor) {
     contenedor.style.display = "flex";
   }
@@ -1166,7 +1193,7 @@ window.imprimirLotesSeleccionados = function () {
           <div style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
               <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="logo.png" style="height: 36px; width: auto; object-fit: contain;" alt="Logo" />
+                <img src="logo.png" style="height: 36px; width: auto; object-fit: contain; filter: brightness(0);" alt="Logo" onerror="this.style.display='none'" />
                 <div>
                   <h1 style="margin: 0; font-size: 16px; font-weight: bold; color: #2c3e50;">Municipalidad de Rufino</h1>
                   <h2 style="margin: 2px 0 0 0; font-size: 11px; color: #7f8c8d; font-weight: normal;">Planilla Técnica de Lotes Seleccionados</h2>
@@ -1201,7 +1228,7 @@ window.imprimirLotesSeleccionados = function () {
           <div style="padding-top: 5px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
               <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="logo.png" style="height: 34px; width: auto; object-fit: contain;" alt="Logo" />
+                <img src="logo.png" style="height: 34px; width: auto; object-fit: contain; filter: brightness(0);" alt="Logo" onerror="this.style.display='none'" />
                 <div>
                   <h1 style="margin: 0; font-size: 15px; font-weight: bold; color: #2c3e50;">Plano de la Manzana / Ubicación</h1>
                   <h2 style="margin: 2px 0 0 0; font-size: 10px; color: #7f8c8d; font-weight: normal;">Vista catastral de los lotes seleccionados</h2>
@@ -1367,7 +1394,7 @@ function actualizarEtiquetasPadron() {
             font-weight: bold;
             font-family: Arial, sans-serif;
             color: #1a252f;
-            text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 4px #fff;
+            text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0 0 4px #fff;
             white-space: nowrap;
             overflow: hidden;
             user-select: none;
@@ -1428,5 +1455,399 @@ window.toggleHerramientasFiltros = function () {
   }, 300);
 };
 
-// Inicialización
+// ==========================================
+// 18. FILTRADO, DESTACADO Y GRÁFICO DE OBRAS Y LECTURA DE AF2
+// ==========================================
+let obrasCargadasExcel = [];
+let padronesObraSeleccionada = new Map();
+let nombreObraSeleccionada = "";
+let totalDeudaGeneralCSV = 0;
+
+async function cargarObrasCSV() {
+  try {
+    const response = await fetch('obras tgi 06-10.csv');
+    if (!response.ok) {
+      console.warn("No se encontró el archivo 'obras tgi 06-10.csv'");
+      return;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+    const firstSheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[firstSheetName];
+
+    // Extraer celda AF2 (Columna 31 -> AF, Fila 2)
+    const celdaAF2 = sheet['AF2'];
+    if (celdaAF2 && celdaAF2.v !== undefined && celdaAF2.v !== null && String(celdaAF2.v).trim() !== "") {
+      if (celdaAF2.t === 'd' && celdaAF2.v instanceof Date) {
+        const d = celdaAF2.v;
+        fechaDeudaAF2 = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      } else {
+        fechaDeudaAF2 = String(celdaAF2.v).trim();
+      }
+    }
+
+    obrasCargadasExcel = XLSX.utils.sheet_to_json(sheet);
+    
+    // Si AF2 no devolvió un valor válido, buscar en los registros del objeto
+    if (fechaDeudaAF2 === "No especificada" && obrasCargadasExcel.length > 0) {
+      const reg0 = obrasCargadasExcel[0];
+      const valFecha = reg0["Deuda a la Fecha"] || reg0["deudafecha"] || reg0["DEUDA_FECHA"] || reg0.DeudaFecha;
+      if (valFecha) fechaDeudaAF2 = String(valFecha).trim();
+    }
+
+    actualizarLeyendasFechaObras();
+
+    totalDeudaGeneralCSV = obrasCargadasExcel.reduce((acc, item) => {
+      const monto = limpiarMontoGenerico(item["Total Adeudado"] || item["total adeudado"] || item.TotalAdeudado);
+      return acc + monto;
+    }, 0);
+
+    poblarDesplegableObras();
+  } catch (error) {
+    console.error("Error al procesar el CSV de obras:", error);
+  }
+}
+
+function actualizarLeyendasFechaObras() {
+  const elPanel = document.getElementById('fechaDeudaAF2Panel');
+  const elModalInforme = document.getElementById('leyendaFechaInformeObras');
+  const elModalSemaforo = document.getElementById('leyendaFechaSemaforoObras');
+
+  if (elPanel) elPanel.innerText = fechaDeudaAF2;
+  if (elModalInforme) elModalInforme.innerText = `Deudas a la Fecha: ${fechaDeudaAF2}`;
+  if (elModalSemaforo) elModalSemaforo.innerText = `Deudas a la Fecha: ${fechaDeudaAF2}`;
+}
+
+function poblarDesplegableObras() {
+  const select = document.getElementById('selectObraConcepto');
+  if (!select) return;
+
+  const obrasUnicas = [...new Set(obrasCargadasExcel.map(item => {
+    return String(item.Concepto || item.concepto || item.CONCEPTO || "Sin Concepto").trim();
+  }))].filter(c => c !== "" && c !== "Sin Concepto").sort();
+
+  select.innerHTML = '<option value="">🚧 Seleccionar una Obra...</option>';
+
+  obrasUnicas.forEach(obra => {
+    const option = document.createElement('option');
+    option.value = obra;
+    option.textContent = obra;
+    select.appendChild(option);
+  });
+}
+
+function filtrarYMostrarObraEnMapa(conceptoSeleccionado) {
+  nombreObraSeleccionada = conceptoSeleccionado;
+  padronesObraSeleccionada.clear();
+
+  const infoPanel = document.getElementById('infoObraSeleccionada');
+  const cantLabel = document.getElementById('cantLotesObra');
+  const montoLabel = document.getElementById('montoDeudaObra');
+
+  if (!conceptoSeleccionado) {
+    if (infoPanel) infoPanel.style.display = 'none';
+    if (miGraficoO) { miGraficoO.destroy(); miGraficoO = null; }
+    
+    if (capaTgi) {
+      capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+    }
+    return;
+  }
+
+  const filasObra = obrasCargadasExcel.filter(item => {
+    const concepto = String(item.Concepto || item.concepto || item.CONCEPTO || "").trim();
+    return concepto === conceptoSeleccionado;
+  });
+
+  let deudaTotalObra = 0;
+  filasObra.forEach(item => {
+    const padronVal = String(item.Padron || item.PADRON || item.padron || item.Padronn || "").trim();
+    if (padronVal) {
+      const ctas = parseInt(item["Ctas Deuda"] || item["ctas deuda"] || item["CtasDeuda"] || item.Ctas_Deuda || 0) || 0;
+      padronesObraSeleccionada.set(padronVal, ctas);
+    }
+    const monto = limpiarMontoGenerico(item["Total Adeudado"] || item["total adeudado"] || item.TotalAdeudado);
+    deudaTotalObra += monto;
+  });
+
+  if (cantLabel) cantLabel.innerText = padronesObraSeleccionada.size;
+  if (montoLabel) montoLabel.innerText = formatearMoneda(deudaTotalObra);
+  if (infoPanel) infoPanel.style.display = 'block';
+
+  destacarLotesAfectadosEnMapa();
+}
+
+function destacarLotesAfectadosEnMapa() {
+  if (!capaTgi) return;
+
+  const capasAfectadas = [];
+
+  capaTgi.eachLayer(layer => {
+    const props = layer.feature.properties || {};
+    const padronGeoJSON = String(
+      buscarProp(props, "Padronn") || 
+      buscarProp(props, "Padron") || 
+      buscarProp(props, "Contrib")
+    ).trim();
+
+    if (padronesObraSeleccionada.size > 0 && padronesObraSeleccionada.has(padronGeoJSON)) {
+      const ctasDeuda = padronesObraSeleccionada.get(padronGeoJSON);
+      
+      let colorLote = '#10b981'; // Verde (0 cuotas)
+      let colorBorde = '#059669';
+
+      if (ctasDeuda === 1 || ctasDeuda === 2) {
+        colorLote = '#f59e0b'; // Amarillo (1 o 2 cuotas)
+        colorBorde = '#d97706';
+      } else if (ctasDeuda >= 3) {
+        colorLote = '#ef4444'; // Rojo (3 o más cuotas)
+        colorBorde = '#dc2626';
+      }
+
+      layer.setStyle({
+        color: colorBorde,
+        fillColor: colorLote,
+        weight: 1.5,
+        fillOpacity: 0.85
+      });
+      capasAfectadas.push(layer);
+    } else if (padronesObraSeleccionada.size > 0) {
+      layer.setStyle({
+        color: 'transparent',
+        fillColor: 'transparent',
+        weight: 0,
+        fillOpacity: 0
+      });
+    } else {
+      capaTgi.resetStyle(layer);
+    }
+  });
+
+  if (capasAfectadas.length > 0) {
+    const grupoAfectados = L.featureGroup(capasAfectadas);
+    map.fitBounds(grupoAfectados.getBounds(), { padding: [50, 50], maxZoom: 18 });
+  } else if (nombreObraSeleccionada !== "") {
+    alert(`No se encontraron parcelas en la cartografía para la obra: "${nombreObraSeleccionada}"`);
+  }
+}
+
+// ==========================================
+// 19. INFORME DETALLADO Y GRÁFICO TIPO ROSQUILLA COMPACTO Y ELEGANTE
+// ==========================================
+
+function obtenerFilasObraActuales() {
+  if (!nombreObraSeleccionada) {
+    return obrasCargadasExcel;
+  }
+  return obrasCargadasExcel.filter(item => {
+    const concepto = String(item.Concepto || item.concepto || item.CONCEPTO || "").trim();
+    return concepto === nombreObraSeleccionada;
+  });
+}
+
+// A. INFORME DETALLADO EN TABLA
+window.abrirInformeObrasModal = function() {
+  const modal = document.getElementById('modalInformeObras');
+  const subtitulo = document.getElementById('subtituloObraInforme');
+  const resumen = document.getElementById('resumenTotalesInforme');
+  const cuerpoTabla = document.getElementById('cuerpoTablaInformeObras');
+
+  const filas = obtenerFilasObraActuales();
+
+  if (subtitulo) {
+    subtitulo.innerText = nombreObraSeleccionada 
+      ? `Obra Seleccionada: ${nombreObraSeleccionada}` 
+      : "Listado Completo de Obras";
+  }
+
+  let totalAcumulado = 0;
+  let totalCtasDeuda = 0;
+
+  let htmlFilas = "";
+  filas.forEach(item => {
+    const padron = item.Padron || item.PADRON || item.padron || item.Padronn || "-";
+    const titular = item.Titular || item.TITULAR || item.titular || item["Tit. Nombre"] || "Sin Especificar";
+    const concepto = item.Concepto || item.concepto || item.CONCEPTO || "-";
+    const ctasTotales = item["Ctas Totales"] || item["ctas totales"] || item.CtasTotales || item.Ctas_Totales || 0;
+    const ctasDeuda = parseInt(item["Ctas Deuda"] || item["ctas deuda"] || item.CtasDeuda || item.Ctas_Deuda || 0) || 0;
+    const monto = limpiarMontoGenerico(item["Total Adeudado"] || item["total adeudado"] || item.TotalAdeudado);
+
+    totalAcumulado += monto;
+    totalCtasDeuda += ctasDeuda;
+
+    let badgeSem = '<span class="badge-semaforo sem-verde">AL DÍA</span>';
+    if (ctasDeuda === 1 || ctasDeuda === 2) {
+      badgeSem = '<span class="badge-semaforo sem-amarillo">DEUDA BAJA</span>';
+    } else if (ctasDeuda >= 3) {
+      badgeSem = '<span class="badge-semaforo sem-rojo">DEUDA ALTA</span>';
+    }
+
+    htmlFilas += `
+      <tr onclick="seleccionarLotePorPadron('${escaparHTML(padron)}')">
+        <td><strong>${padron}</strong></td>
+        <td>${titular}</td>
+        <td>${concepto}</td>
+        <td style="text-align: center;">${ctasTotales}</td>
+        <td style="text-align: center; font-weight: bold; color: ${ctasDeuda > 0 ? '#ef4444' : '#10b981'};">${ctasDeuda}</td>
+        <td style="text-align: center;">${badgeSem}</td>
+        <td style="text-align: right; font-weight: bold;">${formatearMoneda(monto)}</td>
+      </tr>
+    `;
+  });
+
+  if (cuerpoTabla) cuerpoTabla.innerHTML = htmlFilas || '<tr><td colspan="7" style="text-align:center;">No hay registros</td></tr>';
+  if (resumen) {
+    resumen.innerText = `Lotes: ${filas.length} | Ctas Deuda: ${totalCtasDeuda} | Total: ${formatearMoneda(totalAcumulado)}`;
+  }
+
+  actualizarLeyendasFechaObras();
+
+  if (modal) modal.style.display = 'flex';
+};
+
+window.cerrarInformeObrasModal = function() {
+  const modal = document.getElementById('modalInformeObras');
+  if (modal) modal.style.display = 'none';
+};
+
+window.filtrarTablaInformeObras = function(busqueda) {
+  const inputNorm = normalizarTexto(busqueda);
+  const filas = document.querySelectorAll('#cuerpoTablaInformeObras tr');
+
+  filas.forEach(fila => {
+    const textoFila = normalizarTexto(fila.innerText);
+    fila.style.display = textoFila.includes(inputNorm) ? '' : 'none';
+  });
+};
+
+window.imprimirInformeObras = function() {
+  const contenido = document.getElementById('modalInformeObras').innerHTML;
+  const ventanaImpresion = window.open('', '_blank', 'height=800,width=1000');
+  
+  if (!ventanaImpresion) return alert("Permita las ventanas emergentes.");
+
+  ventanaImpresion.document.write(`
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Informe de Deuda de Obras</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+          th { background-color: #1e293b; color: white; padding: 8px; text-align: left; }
+          td { border: 1px solid #ccc; padding: 6px; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .badge-semaforo { padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9px; color: white; }
+          .sem-verde { background: #10b981; }
+          .sem-amarillo { background: #f59e0b; color: #333; }
+          .sem-rojo { background: #ef4444; }
+          .modal-pdf-acciones, #filtroTablaInforme { display: none !important; }
+        </style>
+      </head>
+      <body>
+        ${contenido}
+      </body>
+    </html>
+  `);
+  ventanaImpresion.document.close();
+  ventanaImpresion.focus();
+  setTimeout(() => {
+    ventanaImpresion.print();
+    ventanaImpresion.close();
+  }, 500);
+};
+
+// B. GRÁFICO SEMÁFORO COMPACTO Y ELEGANTE
+window.abrirGraficoEstadoDeudaSemaforoModal = function() {
+  const modal = document.getElementById('modalSemaforoObras');
+  const subtitulo = document.getElementById('subtituloSemaforo');
+
+  if (subtitulo) {
+    subtitulo.innerText = nombreObraSeleccionada 
+      ? `Estado Semáforo: ${nombreObraSeleccionada}` 
+      : "Estado Semáforo: Todas las Obras";
+  }
+
+  const filas = obtenerFilasObraActuales();
+
+  let verdeCant = 0, verdeMonto = 0;
+  let amarilloCant = 0, amarilloMonto = 0;
+  let rojoCant = 0, rojoMonto = 0;
+
+  filas.forEach(item => {
+    const ctasDeuda = parseInt(item["Ctas Deuda"] || item["ctas deuda"] || item.CtasDeuda || item.Ctas_Deuda || 0) || 0;
+    const monto = limpiarMontoGenerico(item["Total Adeudado"] || item["total adeudado"] || item.TotalAdeudado);
+
+    if (ctasDeuda === 0) {
+      verdeCant++;
+      verdeMonto += monto;
+    } else if (ctasDeuda === 1 || ctasDeuda === 2) {
+      amarilloCant++;
+      amarilloMonto += monto;
+    } else {
+      rojoCant++;
+      rojoMonto += monto;
+    }
+  });
+
+  // Cargar Indicadores
+  document.getElementById('semCantVerde').innerText = verdeCant;
+  document.getElementById('semMontoVerde').innerText = formatearMoneda(verdeMonto);
+
+  document.getElementById('semCantAmarillo').innerText = amarilloCant;
+  document.getElementById('semMontoAmarillo').innerText = formatearMoneda(amarilloMonto);
+
+  document.getElementById('semCantRojo').innerText = rojoCant;
+  document.getElementById('semMontoRojo').innerText = formatearMoneda(rojoMonto);
+
+  actualizarLeyendasFechaObras();
+
+  // Renderizar Gráfico tipo Rosquilla Fina Elegante
+  if (miGraficoSemaforo) miGraficoSemaforo.destroy();
+
+  const canvas = document.getElementById('canvasGraficoSemaforo');
+  if (canvas) {
+    miGraficoSemaforo = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Al Día (0 ctas)', 'Deuda Baja (1-2 ctas)', 'Deuda Alta (≥3 ctas)'],
+        datasets: [{
+          data: [verdeCant, amarilloCant, rojoCant],
+          backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 10, font: { size: 10, weight: '600' }, padding: 12 }
+          },
+          datalabels: {
+            color: '#ffffff',
+            font: { weight: 'bold', size: 11 },
+            formatter: (val) => val > 0 ? val : ''
+          }
+        }
+      }
+    });
+  }
+
+  if (modal) modal.style.display = 'flex';
+};
+
+window.cerrarSemaforoObrasModal = function() {
+  const modal = document.getElementById('modalSemaforoObras');
+  if (modal) modal.style.display = 'none';
+};
+
+// Inicialización general
 cargarDatos();
+cargarObrasCSV();
