@@ -41,6 +41,7 @@ let mostrarSoloMuni = false;
 let mostrarCapaTgi = true;
 let listadoLotesFiltroActual = [];
 let loteSeleccionadoActual = null;
+let loteResaltadoActual = null;
 
 // Fechas de Deuda
 let fechaDeudaAF2 = "No especificada";
@@ -302,7 +303,6 @@ async function cargarDatos() {
         }
       });
 
-      // Obtener la propiedad deudafecha del primer elemento del GeoJSON
       const loteConFecha = datosTgi.features.find(f => f.properties && (f.properties.deudafecha || f.properties.DeudaFecha || f.properties["Deuda a la Fecha"]));
       if (loteConFecha) {
         fechaDeudaGeoJSON = decodificarTexto(obtenerDatoGeoJSON(loteConFecha.properties, ["deudafecha", "DeudaFecha", "Deuda a la Fecha"]));
@@ -315,6 +315,13 @@ async function cargarDatos() {
     vincularBotonesBarra();
   } catch (e) {
     console.error("Error cargando tgi.geojson:", e);
+  }
+}
+
+function limpiarResalteLote() {
+  if (loteResaltadoActual && capaTgi) {
+    capaTgi.resetStyle(loteResaltadoActual);
+    loteResaltadoActual = null;
   }
 }
 
@@ -331,6 +338,21 @@ function dibujarMapa(features) {
           toggleSeleccionLote(f, l);
           return;
         }
+
+        // Restablecer el estilo de la parcela resaltada anteriormente
+        if (loteResaltadoActual && loteResaltadoActual !== l) {
+          capaTgi.resetStyle(loteResaltadoActual);
+        }
+
+        // Aplicar estilo de resalte al contorno de la parcela seleccionada
+        l.setStyle({
+          color: '#00ffff',     // Cyan brillante
+          weight: 4.5,          // Borde más grueso
+          fillOpacity: 0.85,
+          dashArray: null
+        });
+        l.bringToFront();
+        loteResaltadoActual = l;
 
         mostrarFicha(f.properties);
 
@@ -802,6 +824,8 @@ function cerrarFicha() {
   if (panelFlotante) {
     panelFlotante.style.display = 'none';
   }
+  limpiarResalteLote();
+  limpiarMedidasLote();
 }
 
 // ==========================================
@@ -1430,7 +1454,6 @@ function actualizarEtiquetasPadron() {
   }
 }
 
-// Escuchadores de eventos para zoom y movimiento
 map.on('zoomend moveend resize', actualizarEtiquetasPadron);
 
 // ==========================================
@@ -1476,7 +1499,6 @@ async function cargarObrasCSV() {
     const firstSheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[firstSheetName];
 
-    // Extraer celda AF2 (Columna 31 -> AF, Fila 2)
     const celdaAF2 = sheet['AF2'];
     if (celdaAF2 && celdaAF2.v !== undefined && celdaAF2.v !== null && String(celdaAF2.v).trim() !== "") {
       if (celdaAF2.t === 'd' && celdaAF2.v instanceof Date) {
@@ -1489,7 +1511,6 @@ async function cargarObrasCSV() {
 
     obrasCargadasExcel = XLSX.utils.sheet_to_json(sheet);
     
-    // Si AF2 no devolvió un valor válido, buscar en los registros del objeto
     if (fechaDeudaAF2 === "No especificada" && obrasCargadasExcel.length > 0) {
       const reg0 = obrasCargadasExcel[0];
       const valFecha = reg0["Deuda a la Fecha"] || reg0["deudafecha"] || reg0["DEUDA_FECHA"] || reg0.DeudaFecha;
@@ -1792,7 +1813,6 @@ window.abrirGraficoEstadoDeudaSemaforoModal = function() {
     }
   });
 
-  // Cargar Indicadores
   document.getElementById('semCantVerde').innerText = verdeCant;
   document.getElementById('semMontoVerde').innerText = formatearMoneda(verdeMonto);
 
@@ -1804,7 +1824,6 @@ window.abrirGraficoEstadoDeudaSemaforoModal = function() {
 
   actualizarLeyendasFechaObras();
 
-  // Renderizar Gráfico tipo Rosquilla Fina Elegante
   if (miGraficoSemaforo) miGraficoSemaforo.destroy();
 
   const canvas = document.getElementById('canvasGraficoSemaforo');
