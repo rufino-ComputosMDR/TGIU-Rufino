@@ -444,6 +444,32 @@
     pointer-events: none;
     white-space: nowrap;
   }
+
+  /* ==========================================
+     ETIQUETAS COMPACTAS DE MEDIDAS DE LOTE
+     ========================================== */
+  .etiqueta-medida-lote {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(44, 62, 80, 0.5) !important;
+    border-radius: 3px !important;
+    color: #1a252f !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    padding: 1px 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    pointer-events: none !important;
+    white-space: nowrap !important;
+    line-height: 12px !important;
+  }
+
+  /* Ocultar flechas o puntas por defecto del tooltip de Leaflet */
+  .leaflet-tooltip-top.etiqueta-medida-lote::before,
+  .leaflet-tooltip-bottom.etiqueta-medida-lote::before,
+  .leaflet-tooltip-left.etiqueta-medida-lote::before,
+  .leaflet-tooltip-right.etiqueta-medida-lote::before {
+    display: none !important;
+  }
   
   .btn-toggle-filtros {
     position: absolute;
