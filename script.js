@@ -10,7 +10,7 @@ const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.p
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
-// Capa Satelital de Google Maps (Permite alto nivel de zoom sin errores)
+// Capa Satelital de Google Maps
 const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
   maxZoom: 21,
   attribution: '&copy; Google Maps'
@@ -265,10 +265,13 @@ function estiloLote(f) {
   const deu = limpiarMontoDeuda(f.properties);
   const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
 
-  if (deu <= 0) return { color: "#aaa", fillColor: "transparent", weight: 0.5, fillOpacity: 0.1 };
+  // CORRECCIÓN: Mostrar verde para los que están al día
+  if (deu <= 0) {
+    return { color: "#27ae60", fillColor: "#2ecc71", weight: 0.8, fillOpacity: 0.55 };
+  }
 
   const col = (mes === 1) ? '#f1c40f' : '#e74c3c';
-  return { color: col, fillColor: col, weight: 1, fillOpacity: 0.6 };
+  return { color: col, fillColor: col, weight: 1, fillOpacity: 0.65 };
 }
 
 // ==========================================
@@ -340,15 +343,13 @@ function dibujarMapa(features) {
           return;
         }
 
-        // Restablecer el estilo de la parcela resaltada anteriormente
         if (loteResaltadoActual && loteResaltadoActual !== l) {
           capaTgi.resetStyle(loteResaltadoActual);
         }
 
-        // Aplicar estilo de resalte al contorno de la parcela seleccionada
         l.setStyle({
-          color: '#00ffff',     // Cyan brillante
-          weight: 4.5,          // Borde más grueso
+          color: '#00ffff',
+          weight: 4.5,
           fillOpacity: 0.85,
           dashArray: null
         });
@@ -897,6 +898,8 @@ function actualizarGraficoGeneral(features) {
     if (deu <= 0) s++; else if (mes === 1) v++; else d++;
   });
 
+  const total = s + v + d;
+
   if (miGraficoG) miGraficoG.destroy();
 
   const canvas = document.getElementById('graficoBarras');
@@ -917,11 +920,38 @@ function actualizarGraficoGeneral(features) {
       responsive: true, 
       maintainAspectRatio: false, 
       plugins: { 
-        legend: { position: 'right' },
+        legend: { 
+          position: 'right',
+          labels: {
+            font: { size: 10 },
+            generateLabels: (chart) => {
+              const data = chart.data;
+              if (data.labels.length && data.datasets.length) {
+                return data.labels.map((label, i) => {
+                  const val = data.datasets[0].data[i];
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                  return {
+                    text: `${label}: ${val} (${pct}%)`,
+                    fillStyle: data.datasets[0].backgroundColor[i],
+                    strokeStyle: '#ffffff',
+                    lineWidth: 1,
+                    hidden: false,
+                    index: i
+                  };
+                });
+              }
+              return [];
+            }
+          }
+        },
         datalabels: {
           color: '#ffffff',
-          font: { weight: 'bold', size: 11 },
-          formatter: (value) => value > 0 ? value : ''
+          font: { weight: 'bold', size: 10 },
+          formatter: (value) => {
+            if (value <= 0) return '';
+            const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${value}\n(${pct}%)`;
+          }
         }
       }, 
       cutout: '50%' 
