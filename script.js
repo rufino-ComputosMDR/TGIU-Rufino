@@ -10,9 +10,10 @@ const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.p
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
-const capaSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 19,
-  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+// Capa Satelital de Google Maps (Permite alto nivel de zoom sin errores)
+const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+  maxZoom: 21,
+  attribution: '&copy; Google Maps'
 });
 
 const map = L.map('map', {
@@ -611,7 +612,7 @@ function vincularBotonesBarra() {
         btnS.innerHTML = "🛰️ Satelital";
         btnS.classList.remove('activo');
       } else {
-        map.removeLayer(capaSatelital);
+        map.removeLayer(capaCalles);
         map.addLayer(capaSatelital);
         btnS.innerHTML = "🛰️ Satelital (ON)";
         btnS.classList.add('activo');
