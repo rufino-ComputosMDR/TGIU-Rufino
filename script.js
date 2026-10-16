@@ -160,7 +160,7 @@ window.cerrarModalAyuda = function() {
 };
 
 // ==========================================
-// 5. UTILERÍA Y PROPIEDADES GEOJSON
+// 5. UTILERÍA Y PROPIEDADES GEOJSON / CSV
 // ==========================================
 function buscarProp(obj, texto) {
   if (!obj) return "";
@@ -169,13 +169,13 @@ function buscarProp(obj, texto) {
 }
 
 function esLoteSinDatos(propiedades) {
-  const padron = normalizarTexto(buscarProp(propiedades, "Padron") || buscarProp(propiedades, "Contrib"));
-  const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre"));
+  const padron = normalizarTexto(buscarProp(propiedades, "Padron") || buscarProp(propiedades, "Padronn") || buscarProp(propiedades, "Contrib"));
+  const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre") || buscarProp(propiedades, "Titular"));
   return padron === "" && titular === "";
 }
 
 function esLoteMunicipal(propiedades) {
-  const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre"));
+  const titular = normalizarTexto(buscarProp(propiedades, "Tit. Nombre") || buscarProp(propiedades, "Titular"));
   return titular === "municipalidad de rufino";
 }
 
@@ -200,7 +200,11 @@ function limpiarMontoGenerico(valorTexto) {
 
 function limpiarMontoDeuda(propiedades) {
   if (esLoteMunicipal(propiedades)) return 0;
-  return limpiarMontoGenerico(buscarProp(propiedades, "Deuda TGI"));
+  return limpiarMontoGenerico(
+    buscarProp(propiedades, "Total Adeudado") || 
+    buscarProp(propiedades, "Deuda TGI") || 
+    buscarProp(propiedades, "Deuda")
+  );
 }
 
 // ==========================================
@@ -262,20 +266,68 @@ function estiloLote(f) {
     return { color: "#1b4f72", fillColor: "#2980b9", weight: 1.5, fillOpacity: 0.6 };
   }
 
+  // Reglas del Semáforo de Deuda
   const deu = limpiarMontoDeuda(f.properties);
-  const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
+  const mes = parseInt(buscarProp(f.properties, "Ctas Deuda") || buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
 
-  // CORRECCIÓN: Mostrar verde para los que están al día
-  if (deu <= 0) {
-    return { color: "#27ae60", fillColor: "#2ecc71", weight: 0.8, fillOpacity: 0.55 };
+  if (deu <= 0 || mes === 0) {
+    return { color: "#27ae60", fillColor: "#2ecc71", weight: 0.8, fillOpacity: 0.55 }; // Verde (0 meses / Al día)
+  } else if (mes >= 1 && mes <= 3) {
+    return { color: "#f39c12", fillColor: "#f1c40f", weight: 1, fillOpacity: 0.65 }; // Amarillo (1 a 3 meses / Deuda Moderada)
+  } else {
+    return { color: "#c0392b", fillColor: "#e74c3c", weight: 1, fillOpacity: 0.65 }; // Rojo (4 o más meses / Deuda)
   }
-
-  const col = (mes === 1) ? '#f1c40f' : '#e74c3c';
-  return { color: col, fillColor: col, weight: 1, fillOpacity: 0.65 };
 }
 
 // ==========================================
-// 7. CARGA DE DATOS Y MAPA
+// 7. REFERENCIA AL PIE DE PANTALLA
+// ==========================================
+function crearReferenciaInferior() {
+  if (document.getElementById('referenciaSemaforoPie')) return;
+
+  const divRef = document.createElement('div');
+  divRef.id = 'referenciaSemaforoPie';
+  divRef.style.cssText = `
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(30, 41, 59, 0.95);
+    color: #ffffff;
+    padding: 8px 15px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 25px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+    border-top: 1px solid #334155;
+    box-sizing: border-box;
+  `;
+
+  divRef.innerHTML = `
+    <span style="font-weight: bold; color: #cbd5e1; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">Semáforo Deuda TGI:</span>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="display: inline-block; width: 14px; height: 14px; background: #2ecc71; border-radius: 3px; border: 1px solid #27ae60;"></span>
+      <span><strong>Al Día:</strong> 0 meses</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="display: inline-block; width: 14px; height: 14px; background: #f1c40f; border-radius: 3px; border: 1px solid #f39c12;"></span>
+      <span><strong>Deuda Moderada:</strong> 1 a 3 meses</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="display: inline-block; width: 14px; height: 14px; background: #e74c3c; border-radius: 3px; border: 1px solid #c0392b;"></span>
+      <span><strong>Deuda:</strong> 4 meses en adelante</span>
+    </div>
+  `;
+
+  document.body.appendChild(divRef);
+}
+
+// ==========================================
+// 8. CARGA DE DATOS Y CRUCE (tgi-datos.csv + Deuda-tgi.csv <-> tgi.geojson)
 // ==========================================
 async function cargarDatos() {
   try {
@@ -295,8 +347,85 @@ async function cargarDatos() {
   }
 
   try {
+    // 1. Cargar datos catastrales desde tgi-datos.csv
+    const mapaDatosCSV = new Map();
+
+    try {
+      const resCSV = await fetch('tgi-datos.csv');
+      if (resCSV.ok) {
+        const textoCSV = await resCSV.text();
+        const workbook = XLSX.read(textoCSV, { type: 'string' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const filasCSV = XLSX.utils.sheet_to_json(sheet);
+
+        filasCSV.forEach(fila => {
+          const clavePadron = String(
+            buscarProp(fila, "Padron") || 
+            buscarProp(fila, "PADRON") || 
+            buscarProp(fila, "Padronn") || 
+            buscarProp(fila, "Contrib") || ""
+          ).trim();
+
+          if (clavePadron) {
+            mapaDatosCSV.set(clavePadron, fila);
+          }
+        });
+        console.log(`✅ Archivo tgi-datos.csv cargado: ${mapaDatosCSV.size} registros.`);
+      } else {
+        console.warn("⚠️ No se encontró el archivo tgi-datos.csv");
+      }
+    } catch (errCSV) {
+      console.warn("Aviso: Error leyendo tgi-datos.csv", errCSV);
+    }
+
+    // 2. Cargar datos de deuda desde Deuda-tgi.csv
+    const mapaDeudaCSV = new Map();
+
+    try {
+      const resDeuda = await fetch('Deuda-tgi.csv');
+      if (resDeuda.ok) {
+        const bufferDeuda = await resDeuda.arrayBuffer();
+        const workbookD = XLSX.read(bufferDeuda, { type: 'array', cellDates: true });
+        const sheetD = workbookD.Sheets[workbookD.SheetNames[0]];
+
+        // Lectura de Deuda a la fecha en celda Y2
+        const celdaY2 = sheetD['Y2'];
+        if (celdaY2 && celdaY2.v !== undefined && celdaY2.v !== null && String(celdaY2.v).trim() !== "") {
+          if (celdaY2.t === 'd' && celdaY2.v instanceof Date) {
+            const d = celdaY2.v;
+            fechaDeudaGeoJSON = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+          } else {
+            fechaDeudaGeoJSON = String(celdaY2.v).trim();
+          }
+        }
+
+        const filasDeuda = XLSX.utils.sheet_to_json(sheetD);
+
+        filasDeuda.forEach(fila => {
+          const clavePadron = String(
+            buscarProp(fila, "Padron") || 
+            buscarProp(fila, "PADRON") || 
+            buscarProp(fila, "Padronn") || 
+            buscarProp(fila, "Contrib") || ""
+          ).trim();
+
+          if (clavePadron) {
+            mapaDeudaCSV.set(clavePadron, fila);
+          }
+        });
+        console.log(`✅ Archivo Deuda-tgi.csv cargado: ${mapaDeudaCSV.size} registros. Fecha Y2: ${fechaDeudaGeoJSON}`);
+      } else {
+        console.warn("⚠️ No se encontró el archivo Deuda-tgi.csv");
+      }
+    } catch (errDeuda) {
+      console.warn("Aviso: Error leyendo Deuda-tgi.csv", errDeuda);
+    }
+
+    // 3. Cargar tgi.geojson y realizar el cruce doble (tgi-datos + Deuda-tgi)
     const resT = await fetch('tgi.geojson');
     datosTgi = await resT.json();
+
+    let vinculadosCount = 0;
 
     if (datosTgi && datosTgi.features) {
       datosTgi.features.forEach(f => {
@@ -305,11 +434,33 @@ async function cargarDatos() {
             f.properties[k] = decodificarTexto(f.properties[k]);
           }
         }
+
+        // Obtener clave 'Padronn' de tgi.geojson
+        const padronGeoJSON = String(
+          obtenerDatoGeoJSON(f.properties, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"])
+        ).trim();
+
+        // A. Cruzar con datos catastrales de tgi-datos.csv
+        if (padronGeoJSON !== "-" && mapaDatosCSV.has(padronGeoJSON)) {
+          const datosDelCSV = mapaDatosCSV.get(padronGeoJSON);
+          f.properties = { ...f.properties, ...datosDelCSV };
+          vinculadosCount++;
+        }
+
+        // B. Cruzar con datos de deuda de Deuda-tgi.csv
+        if (padronGeoJSON !== "-" && mapaDeudaCSV.has(padronGeoJSON)) {
+          const datosDeuda = mapaDeudaCSV.get(padronGeoJSON);
+          f.properties = { ...f.properties, ...datosDeuda };
+        }
       });
 
-      const loteConFecha = datosTgi.features.find(f => f.properties && (f.properties.deudafecha || f.properties.DeudaFecha || f.properties["Deuda a la Fecha"]));
-      if (loteConFecha) {
-        fechaDeudaGeoJSON = decodificarTexto(obtenerDatoGeoJSON(loteConFecha.properties, ["deudafecha", "DeudaFecha", "Deuda a la Fecha"]));
+      console.log(`✅ Cruce completado: ${vinculadosCount} parcelas vinculadas.`);
+
+      if (fechaDeudaGeoJSON === "No especificada") {
+        const loteConFecha = datosTgi.features.find(f => f.properties && (f.properties.deudafecha || f.properties.DeudaFecha || f.properties["Deuda a la Fecha"]));
+        if (loteConFecha) {
+          fechaDeudaGeoJSON = decodificarTexto(obtenerDatoGeoJSON(loteConFecha.properties, ["deudafecha", "DeudaFecha", "Deuda a la Fecha"]));
+        }
       }
     }
 
@@ -317,8 +468,9 @@ async function cargarDatos() {
     dibujarMapa(datosTgi.features);
     inicializarDesplegableSecciones(datosTgi.features);
     vincularBotonesBarra();
+    crearReferenciaInferior();
   } catch (e) {
-    console.error("Error cargando tgi.geojson:", e);
+    console.error("Error al procesar capas cartográficas o realizar el cruce:", e);
   }
 }
 
@@ -379,7 +531,7 @@ function dibujarMapa(features) {
 }
 
 // ==========================================
-// 8. MEDIDAS Y DISTANCIAS
+// 9. MEDIDAS Y DISTANCIAS
 // ==========================================
 function unificarPuntosColineales(puntos) {
   if (puntos.length <= 3) return puntos;
@@ -473,7 +625,7 @@ function limpiarMedidasLote() {
 }
 
 // ==========================================
-// 9. CONTROLES Y SELECCIÓN MÚLTIPLE
+// 10. CONTROLES Y SELECCIÓN MÚLTIPLE
 // ==========================================
 function toggleModoSinDatos() {
   mostrarSinDatosExclusivos = !mostrarSinDatosExclusivos;
@@ -546,11 +698,11 @@ function vincularBotonesBarra() {
       mostrarCapaTgi = !mostrarCapaTgi;
       if (mostrarCapaTgi) {
         if (capaTgi) map.addLayer(capaTgi);
-        btnTgi.innerHTML = "🗺️ TGI";
+        btnTgi.innerHTML = "MAPA TGI";
         btnTgi.classList.add('activo');
       } else {
         if (capaTgi) map.removeLayer(capaTgi);
-        btnTgi.innerHTML = "🗺️ TGI (OFF)";
+        btnTgi.innerHTML = "MAPA TGI (OFF)";
         btnTgi.classList.remove('activo');
       }
     };
@@ -561,7 +713,7 @@ function vincularBotonesBarra() {
     btnPadron.onclick = function () {
       mostrarPadronesBoton = !mostrarPadronesBoton;
       btnPadron.classList.toggle('activo', mostrarPadronesBoton);
-      btnPadron.innerHTML = mostrarPadronesBoton ? "🏷️ Padrones" : "🏷️ Padrones (OFF)";
+      btnPadron.innerHTML = mostrarPadronesBoton ? "Padrones" : "Padrones (OFF)";
       actualizarEtiquetasPadron();
     };
   }
@@ -596,7 +748,7 @@ function vincularBotonesBarra() {
   if (btnMuni) {
     btnMuni.onclick = function () {
       mostrarSoloMuni = !mostrarSoloMuni;
-      btnMuni.innerHTML = mostrarSoloMuni ? "🏛️ Muni (ON)" : "🏛️ Muni";
+      btnMuni.innerHTML = mostrarSoloMuni ? "Muni (ON)" : "Muni";
       btnMuni.classList.toggle('activo', mostrarSoloMuni);
 
       if (capaTgi) capaTgi.eachLayer(layer => capaTgi.resetStyle(layer));
@@ -610,12 +762,12 @@ function vincularBotonesBarra() {
       if (sateliteActivo) {
         map.removeLayer(capaSatelital);
         map.addLayer(capaCalles);
-        btnS.innerHTML = "🛰️ Satelital";
+        btnS.innerHTML = "Satelital";
         btnS.classList.remove('activo');
       } else {
         map.removeLayer(capaCalles);
         map.addLayer(capaSatelital);
-        btnS.innerHTML = "🛰️ Satelital (ON)";
+        btnS.innerHTML = "Satelital (ON)";
         btnS.classList.add('activo');
       }
     };
@@ -627,7 +779,7 @@ function vincularBotonesBarra() {
   if (btnSel) {
     btnSel.onclick = function () {
       modoSeleccionMultiple = !modoSeleccionMultiple;
-      btnSel.innerHTML = modoSeleccionMultiple ? "🔲 Selección Múltiple: ON" : "🔲 Selección Múltiple: OFF";
+      btnSel.innerHTML = modoSeleccionMultiple ? "Selección Múltiple: ON" : "Selección Múltiple: OFF";
       btnSel.classList.toggle('activo', modoSeleccionMultiple);
       if (panelSel) panelSel.style.display = modoSeleccionMultiple ? "flex" : "none";
 
@@ -661,7 +813,7 @@ function calcularTotalBaldios() {
 }
 
 // ==========================================
-// 10. FILTROS Y BÚSQUEDA INSENSIBLE
+// 11. FILTROS Y BÚSQUEDA INSENSIBLE
 // ==========================================
 function filtrarTodo() {
   const inputA = document.getElementById('inputApellido');
@@ -677,8 +829,8 @@ function filtrarTodo() {
   if (!datosTgi || !datosTgi.features) return;
 
   listadoLotesFiltroActual = datosTgi.features.filter(f => {
-    const nom = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
-    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib"));
+    const nom = normalizarTexto(buscarProp(f.properties, "Tit. Nombre") || buscarProp(f.properties, "Titular"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contrib"));
     return nom.includes(apellidoNorm) || padron.includes(apellidoNorm);
   });
 
@@ -686,9 +838,9 @@ function filtrarTodo() {
 
   if (apellidoNorm.length >= 2) {
     const htmlA = listadoLotesFiltroActual.slice(0, 10).map(f => {
-      const n = buscarProp(f.properties, "Tit. Nombre") || "Sin Nombre";
-      const p = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib") || "-";
-      const d = buscarProp(f.properties, "Ubicacion") || "Ubicación no especificada";
+      const n = buscarProp(f.properties, "Tit. Nombre") || buscarProp(f.properties, "Titular") || "Sin Nombre";
+      const p = buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contrib") || "-";
+      const d = buscarProp(f.properties, "Ubi. Calle") || buscarProp(f.properties, "Ubicacion") || "Ubicación no especificada";
 
       return `<div class="item-sugerencia" onclick="seleccionarLotePorPadron('${escaparHTML(p)}')">
                 <strong>👤 ${n}</strong><br>
@@ -711,7 +863,7 @@ window.seleccionarCalle = function (nombreCalleLimpia) {
 
   const calleNorm = normalizarTexto(nombreCalleLimpia);
   listadoLotesFiltroActual = datosTgi.features.filter(f => 
-    normalizarTexto(buscarProp(f.properties, "Ubicacion")).includes(calleNorm)
+    normalizarTexto(buscarProp(f.properties, "Ubi. Calle") || buscarProp(f.properties, "Ubicacion")).includes(calleNorm)
   );
   dibujarMapa(listadoLotesFiltroActual);
 
@@ -724,9 +876,16 @@ window.seleccionarCalle = function (nombreCalleLimpia) {
 };
 
 window.seleccionarLotePorPadron = function (padronVal) {
-  const lote = datosTgi.features.find(f => 
-    String(buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib")).trim() === String(padronVal).trim()
-  );
+  const claveBuscada = String(padronVal).trim();
+
+  const lote = datosTgi.features.find(f => {
+    const pGeo = String(
+      buscarProp(f.properties, "Padronn") || 
+      buscarProp(f.properties, "Padron") || 
+      buscarProp(f.properties, "Contrib")
+    ).trim();
+    return pGeo === claveBuscada;
+  });
 
   if (lote) {
     const sugApp = document.getElementById('listaSugerencias');
@@ -735,7 +894,13 @@ window.seleccionarLotePorPadron = function (padronVal) {
     mostrarFicha(lote.properties);
     if (capaTgi) {
       capaTgi.eachLayer(l => {
-        if (String(buscarProp(l.feature.properties, "Padronn") || buscarProp(l.feature.properties, "Padron") || buscarProp(l.feature.properties, "Contrib")).trim() === String(padronVal).trim()) {
+        const pLote = String(
+          buscarProp(l.feature.properties, "Padronn") || 
+          buscarProp(l.feature.properties, "Padron") || 
+          buscarProp(l.feature.properties, "Contrib")
+        ).trim();
+
+        if (pLote === claveBuscada) {
           l.bringToFront();
           l.fire('click');
         }
@@ -745,59 +910,52 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 11. FICHA TÉCNICA FLOTANTE
+// 12. FICHA TÉCNICA CATASTRAL FLOTANTE
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
   const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
 
+  // Datos Catastrales provenientes de tgi-datos.csv
   const partida = decodificarTexto(obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]));
-  const padron = decodificarTexto(obtenerDatoGeoJSON(p, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"]));
-  const titular = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Tit_Nombre", "Nombre", "NOMBRE"]));
-  const dni = decodificarTexto(obtenerDatoGeoJSON(p, ["DNI", "dni", "Dni"]));
-  const ubicacion = decodificarTexto(obtenerDatoGeoJSON(p, ["Ubicacion", "UBICACION", "Direccion", "DIRECCION"]));
+  const padron = decodificarTexto(obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]));
+  const titular = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Tit_Nombre", "Nombre", "NOMBRE"]));
+  const dni = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Doc.", "TIT. DOC.", "DNI", "dni", "Dni"]));
+  const ubicacion = decodificarTexto(obtenerDatoGeoJSON(p, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion"]));
   const manzana = obtenerDatoGeoJSON(p, ["Manzana", "MANZANA"]);
-  const seccion = obtenerDatoGeoJSON(p, ["Seccion", "SECCION"]);
+  const seccion = obtenerDatoGeoJSON(p, ["Parcela", "PARCELA", "Seccion", "SECCION"]);
   const lote = obtenerDatoGeoJSON(p, ["Lote", "LOTE"]);
   const frente = obtenerDatoGeoJSON(p, ["Frente 1", "Frente", "FRENTE"]);
   const fondo = obtenerDatoGeoJSON(p, ["Fondo", "FONDO"]);
   const superficie = obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2"]);
-  const ficha = obtenerDatoGeoJSON(p, ["Ficha Catastral", "FICHA", "Ficha"]);
+  const ficha = obtenerDatoGeoJSON(p, ["Varios 7", "VARIOS 7", "Ficha Catastral", "FICHA", "Ficha"]);
 
-  const deudaRaw = obtenerDatoGeoJSON(p, ["Deuda TGI", "DEUDA_TGI", "Deuda_TGI", "Deuda", "DEUDA"]);
+  // Datos de Deuda provenientes de Deuda-tgi.csv
+  const deudaRaw = obtenerDatoGeoJSON(p, ["Total Adeudado", "TOTAL ADEUDADO", "TotalAdeudado", "Deuda TGI", "DEUDA_TGI", "Deuda"]);
   const montoDeuda = limpiarMontoGenerico(deudaRaw);
   const deudaFormateada = formatearMoneda(montoDeuda);
 
-  const mesesAdeud = obtenerDatoGeoJSON(p, ["Meses Adeud.TGI", "Meses Adeud_TGI", "MESES_ADEUD", "Meses Adeudados"]);
-  const deudaFecha = decodificarTexto(obtenerDatoGeoJSON(p, ["deudafecha", "DeudaFecha", "Deuda a la Fecha"]));
+  const mesesAdeud = parseInt(obtenerDatoGeoJSON(p, ["Ctas Deuda", "CTAS DEUDA", "CtasDeuda", "Meses Adeud.TGI", "Meses Adeud_TGI"])) || 0;
+  const deudaFecha = fechaDeudaGeoJSON;
 
-  let estadoRaw = obtenerDatoGeoJSON(p, ["Estado TGI", "Estado_TGI", "ESTADO_TGI", "Estado", "EstadoTGI"]);
   let claseEstado = "al-dia";
   let textoEstado = "AL DÍA";
 
-  if (estadoRaw !== "-" && estadoRaw !== "") {
-    textoEstado = decodificarTexto(estadoRaw).toUpperCase();
-    if (textoEstado.includes("VENCER")) {
-      claseEstado = "a-vencer";
-    } else if (textoEstado.includes("DEUDA") || textoEstado.includes("DEBE")) {
-      claseEstado = "con-deuda";
-    } else if (textoEstado.includes("DÍA") || textoEstado.includes("DIA")) {
-      claseEstado = "al-dia";
-    }
+  if (montoDeuda <= 0 || mesesAdeud === 0) {
+    claseEstado = "al-dia";
+    textoEstado = "AL DÍA";
+  } else if (mesesAdeud >= 1 && mesesAdeud <= 3) {
+    claseEstado = "a-vencer";
+    textoEstado = "DEUDA MODERADA";
   } else {
-    if (montoDeuda > 0) {
-      claseEstado = "con-deuda";
-      textoEstado = "CON DEUDA";
-    } else {
-      claseEstado = "al-dia";
-      textoEstado = "AL DÍA";
-    }
+    claseEstado = "con-deuda";
+    textoEstado = "DEUDA";
   }
 
   const htmlContenido = `
     <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
     <p><strong>PARTIDA:</strong> <span>${partida}</span></p>
-    <p><strong>Padronn:</strong> <span>${padron}</span></p>
+    <p><strong>Padrón:</strong> <span>${padron}</span></p>
     <p><strong>Tit. Nombre:</strong> <span>${titular}</span></p>
     <p><strong>DNI:</strong> <span>${dni}</span></p>
     <p><strong>Ubicación:</strong> <span>${ubicacion}</span></p>
@@ -831,12 +989,12 @@ function cerrarFicha() {
 }
 
 // ==========================================
-// 12. DESPLEGABLES SECCIONES
+// 13. DESPLEGABLES SECCIONES
 // ==========================================
 function inicializarDesplegableSecciones(features) {
   const select = document.getElementById('selectSeccion');
   if (!select) return;
-  const seccionesUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Seccion") || "").trim()))].filter(s => s !== "").sort();
+  const seccionesUnicas = [...new Set(features.map(f => String(buscarProp(f.properties, "Parcela") || buscarProp(f.properties, "Seccion") || "").trim()))].filter(s => s !== "").sort();
 
   select.innerHTML = '<option value="">🧱 Seleccionar Sección...</option>';
   seccionesUnicas.forEach(s => {
@@ -859,7 +1017,7 @@ if (selectSec) {
       return;
     }
 
-    listadoLotesFiltroActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Seccion") || "").trim() === numSeccion);
+    listadoLotesFiltroActual = datosTgi.features.filter(f => String(buscarProp(f.properties, "Parcela") || buscarProp(f.properties, "Seccion") || "").trim() === numSeccion);
     dibujarMapa(listadoLotesFiltroActual);
     if (capaTgi && capaTgi.getLayers().length > 0 && capaTgi.getBounds().isValid()) {
       map.fitBounds(capaTgi.getBounds(), { padding: [40, 40] });
@@ -868,7 +1026,7 @@ if (selectSec) {
 }
 
 // ==========================================
-// 13. ESTADÍSTICAS Y GRÁFICOS (CHART.JS)
+// 14. ESTADÍSTICAS Y GRÁFICOS (CHART.JS)
 // ==========================================
 window.ocultarContenedorGraficoGeneral = function() {
   const el = document.getElementById('contenedorGraficoGeneral');
@@ -894,8 +1052,10 @@ function actualizarGraficoGeneral(features) {
   let s = 0, v = 0, d = 0;
   features.forEach(f => {
     const deu = limpiarMontoDeuda(f.properties);
-    const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
-    if (deu <= 0) s++; else if (mes === 1) v++; else d++;
+    const mes = parseInt(buscarProp(f.properties, "Ctas Deuda") || buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
+    if (deu <= 0 || mes === 0) s++; 
+    else if (mes >= 1 && mes <= 3) v++; 
+    else d++;
   });
 
   const total = s + v + d;
@@ -908,7 +1068,7 @@ function actualizarGraficoGeneral(features) {
   miGraficoG = new Chart(canvas, {
     type: 'doughnut',
     data: {
-      labels: ['Al Día / Exento', 'A Vencer', 'Deuda'],
+      labels: ['Al Día (0m)', 'Deuda Moderada (1-3m)', 'Deuda (4m+)'],
       datasets: [{ 
         data: [s, v, d], 
         backgroundColor: ['#2ecc71', '#f1c40f', '#e74c3c'], 
@@ -963,8 +1123,10 @@ function generarEstadisticaCalle(features, nombre) {
   let alDia = 0, vencer = 0, deuda = 0;
   features.forEach(f => {
     const deu = limpiarMontoDeuda(f.properties);
-    const mes = parseInt(buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
-    if (deu <= 0) alDia++; else if (mes === 1) vencer++; else deuda++;
+    const mes = parseInt(buscarProp(f.properties, "Ctas Deuda") || buscarProp(f.properties, "Meses Adeud.TGI")) || 0;
+    if (deu <= 0 || mes === 0) alDia++; 
+    else if (mes >= 1 && mes <= 3) vencer++; 
+    else deuda++;
   });
 
   const total = features.length;
@@ -994,7 +1156,7 @@ function generarEstadisticaCalle(features, nombre) {
   miGraficoC = new Chart(canvasCalle, {
     type: 'doughnut',
     data: { 
-      labels: ['Al Día', 'A Vencer', 'Deuda'],
+      labels: ['Al Día', 'Deuda Moderada', 'Deuda'],
       datasets: [{ 
         data: [alDia, vencer, deuda], 
         backgroundColor: ['#2ecc71', '#f1c40f', '#e74c3c'], 
@@ -1019,7 +1181,7 @@ function generarEstadisticaCalle(features, nombre) {
 }
 
 // ==========================================
-// 14. GENERADOR DE REPORTES PDF Y PLANO HORIZONTAL
+// 15. GENERADOR DE REPORTES PDF Y PLANO HORIZONTAL
 // ==========================================
 window.abrirVistaPreviaPDF = function (titulo, htmlContenido) {
   const modal = document.getElementById('modalVistaPreviaPDF');
@@ -1116,9 +1278,9 @@ window.imprimirLotesSeleccionados = function () {
 
   const htmlFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties || {};
-    const padron = obtenerDatoGeoJSON(p, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"]);
-    const titular = obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Nombre", "NOMBRE"]);
-    const direccion = obtenerDatoGeoJSON(p, ["Ubicacion", "UBICACION", "Direccion", "DIRECCION"]);
+    const padron = obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]);
+    const titular = obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]);
+    const direccion = obtenerDatoGeoJSON(p, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion", "DIRECCION"]);
     const frente = obtenerDatoGeoJSON(p, ["Frente 1", "Frente", "FRENTE", "Medida_Frente", "Ancho"]);
     const superficie = obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2", "Area"]);
 
@@ -1140,7 +1302,7 @@ window.imprimirLotesSeleccionados = function () {
 
   lotesSeleccionadosMultiples.forEach(f => {
     const p = f.properties || {};
-    const padron = obtenerDatoGeoJSON(p, ["Padronn", "PADRONN", "Padron", "PADRON", "Contrib", "CONTRIB"]);
+    const padron = obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]);
 
     if (!padron || padron === "-") return;
 
@@ -1318,7 +1480,7 @@ window.imprimirLotesSeleccionados = function () {
 };
 
 // ==========================================
-// 15. BÚSQUEDA BARRA SUPERIOR
+// 16. BÚSQUEDA BARRA SUPERIOR
 // ==========================================
 function ejecutarBusquedaBarra(texto) {
   const sugBarra = document.getElementById('listaSugerenciasBarra');
@@ -1336,8 +1498,8 @@ function ejecutarBusquedaBarra(texto) {
 
   const coincidentes = datosTgi.features.filter(f => {
     if (!f || !f.properties) return false;
-    const titular = normalizarTexto(buscarProp(f.properties, "Tit. Nombre"));
-    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib"));
+    const titular = normalizarTexto(buscarProp(f.properties, "Tit. Nombre") || buscarProp(f.properties, "Titular"));
+    const padron = normalizarTexto(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contrib"));
     return titular.includes(busqueda) || padron.includes(busqueda);
   }).slice(0, 15);
 
@@ -1349,8 +1511,8 @@ function ejecutarBusquedaBarra(texto) {
 
   let html = '';
   coincidentes.forEach(f => {
-    const titularOriginal = buscarProp(f.properties, "Tit. Nombre") || 'Sin Nombre';
-    const padronOriginal = String(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Contrib") || 'S/N');
+    const titularOriginal = buscarProp(f.properties, "Tit. Nombre") || buscarProp(f.properties, "Titular") || 'Sin Nombre';
+    const padronOriginal = String(buscarProp(f.properties, "Padron") || buscarProp(f.properties, "Padronn") || buscarProp(f.properties, "Contrib") || 'S/N');
 
     const titularResaltado = resaltarCoincidencia(titularOriginal, texto.trim());
     const padronResaltado = resaltarCoincidencia(padronOriginal, texto.trim());
@@ -1381,7 +1543,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ==========================================
-// 16. ETIQUETAS DINÁMICAS DE PADRÓN POR ZOOM
+// 17. ETIQUETAS DINÁMICAS DE PADRÓN POR ZOOM
 // ==========================================
 function actualizarEtiquetasPadron() {
   capasEtiquetasPadron.clearLayers();
@@ -1405,8 +1567,8 @@ function actualizarEtiquetasPadron() {
     if (!feature || !feature.geometry) return;
 
     const padron = (typeof buscarProp === 'function') 
-      ? (buscarProp(feature.properties, "Padron") || buscarProp(feature.properties, "Contrib"))
-      : (feature.properties.Padron || feature.properties.PADRON || feature.properties.Contribuyente || feature.properties.Contrib);
+      ? (buscarProp(feature.properties, "Padron") || buscarProp(feature.properties, "Padronn") || buscarProp(feature.properties, "Contrib"))
+      : (feature.properties.Padron || feature.properties.PADRON || feature.properties.Padronn || feature.properties.Contrib);
 
     if (!padron || String(padron).trim() === "") return;
 
@@ -1488,7 +1650,7 @@ function actualizarEtiquetasPadron() {
 map.on('zoomend moveend resize', actualizarEtiquetasPadron);
 
 // ==========================================
-// 17. TOGGLE HERRAMIENTAS Y FILTROS
+// 18. TOGGLE HERRAMIENTAS Y FILTROS
 // ==========================================
 window.toggleHerramientasFiltros = function () {
   const panel = document.getElementById('panelLateral') || document.querySelector('.barra-herramientas');
@@ -1510,7 +1672,7 @@ window.toggleHerramientasFiltros = function () {
 };
 
 // ==========================================
-// 18. FILTRADO, DESTACADO Y GRÁFICO DE OBRAS Y LECTURA DE AF2
+// 19. FILTRADO, DESTACADO Y GRÁFICO DE OBRAS Y LECTURA DE AF2
 // ==========================================
 let obrasCargadasExcel = [];
 let padronesObraSeleccionada = new Map();
@@ -1649,11 +1811,11 @@ function destacarLotesAfectadosEnMapa() {
       let colorLote = '#10b981'; // Verde (0 cuotas)
       let colorBorde = '#059669';
 
-      if (ctasDeuda === 1 || ctasDeuda === 2) {
-        colorLote = '#f59e0b'; // Amarillo (1 o 2 cuotas)
+      if (ctasDeuda >= 1 && ctasDeuda <= 3) {
+        colorLote = '#f59e0b'; // Amarillo (1 a 3 cuotas)
         colorBorde = '#d97706';
-      } else if (ctasDeuda >= 3) {
-        colorLote = '#ef4444'; // Rojo (3 o más cuotas)
+      } else if (ctasDeuda >= 4) {
+        colorLote = '#ef4444'; // Rojo (4 o más cuotas)
         colorBorde = '#dc2626';
       }
 
@@ -1685,7 +1847,7 @@ function destacarLotesAfectadosEnMapa() {
 }
 
 // ==========================================
-// 19. INFORME DETALLADO Y GRÁFICO TIPO ROSQUILLA COMPACTO Y ELEGANTE
+// 20. INFORME DETALLADO Y GRÁFICO SEMÁFORO DE OBRAS
 // ==========================================
 
 function obtenerFilasObraActuales() {
@@ -1729,10 +1891,10 @@ window.abrirInformeObrasModal = function() {
     totalCtasDeuda += ctasDeuda;
 
     let badgeSem = '<span class="badge-semaforo sem-verde">AL DÍA</span>';
-    if (ctasDeuda === 1 || ctasDeuda === 2) {
-      badgeSem = '<span class="badge-semaforo sem-amarillo">DEUDA BAJA</span>';
-    } else if (ctasDeuda >= 3) {
-      badgeSem = '<span class="badge-semaforo sem-rojo">DEUDA ALTA</span>';
+    if (ctasDeuda >= 1 && ctasDeuda <= 3) {
+      badgeSem = '<span class="badge-semaforo sem-amarillo">DEUDA MODERADA</span>';
+    } else if (ctasDeuda >= 4) {
+      badgeSem = '<span class="badge-semaforo sem-rojo">DEUDA</span>';
     }
 
     htmlFilas += `
@@ -1835,7 +1997,7 @@ window.abrirGraficoEstadoDeudaSemaforoModal = function() {
     if (ctasDeuda === 0) {
       verdeCant++;
       verdeMonto += monto;
-    } else if (ctasDeuda === 1 || ctasDeuda === 2) {
+    } else if (ctasDeuda >= 1 && ctasDeuda <= 3) {
       amarilloCant++;
       amarilloMonto += monto;
     } else {
@@ -1862,7 +2024,7 @@ window.abrirGraficoEstadoDeudaSemaforoModal = function() {
     miGraficoSemaforo = new Chart(canvas, {
       type: 'doughnut',
       data: {
-        labels: ['Al Día (0 ctas)', 'Deuda Baja (1-2 ctas)', 'Deuda Alta (≥3 ctas)'],
+        labels: ['Al Día (0 ctas)', 'Deuda Moderada (1-3 ctas)', 'Deuda (≥4 ctas)'],
         datasets: [{
           data: [verdeCant, amarilloCant, rojoCant],
           backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
