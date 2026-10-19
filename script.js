@@ -7,12 +7,14 @@ if (typeof ChartDataLabels !== 'undefined') {
 
 const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
+  crossOrigin: true,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 
 // Capa Satelital de Google Maps
 const capaSatelital = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
   maxZoom: 21,
+  crossOrigin: true,
   attribution: '&copy; Google Maps'
 });
 
@@ -2015,6 +2017,47 @@ window.abrirGraficoEstadoDeudaSemaforoModal = function() {
 window.cerrarSemaforoObrasModal = function() {
   const modal = document.getElementById('modalSemaforoObras');
   if (modal) modal.style.display = 'none';
+};
+
+// ==========================================
+// 21. EXPORTAR LOTES SELECCIONADOS A EXCEL
+// ==========================================
+window.descargarExcelSeleccionados = function () {
+  if (typeof lotesSeleccionadosMultiples === 'undefined' || !lotesSeleccionadosMultiples || lotesSeleccionadosMultiples.length === 0) {
+    return alert("No has seleccionado ningún lote en el mapa.");
+  }
+
+  if (typeof XLSX === 'undefined') {
+    return alert("La librería XLSX (SheetJS) no está cargada en la página.");
+  }
+
+  const datosFilas = lotesSeleccionadosMultiples.map(f => {
+    const p = f.properties || {};
+    return {
+      "Padrón": obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]),
+      "Partida": obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]),
+      "Titular": obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]),
+      "DNI": obtenerDatoGeoJSON(p, ["Tit. Doc.", "TIT. DOC.", "DNI", "dni", "Dni"]),
+      "Ubicación": obtenerDatoGeoJSON(p, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion"]),
+      "Manzana": obtenerDatoGeoJSON(p, ["Manzana", "MANZANA"]),
+      "Sección": obtenerDatoGeoJSON(p, ["Parcela", "PARCELA", "Seccion", "SECCION"]),
+      "Lote": obtenerDatoGeoJSON(p, ["Lote", "LOTE"]),
+      "Frente": obtenerDatoGeoJSON(p, ["Frente 1", "Frente", "FRENTE"]),
+      "Fondo": obtenerDatoGeoJSON(p, ["Fondo", "FONDO"]),
+      "Superficie": obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2"]),
+      "Deuda TGI": formatearMoneda(limpiarMontoDeuda(p)),
+      "Meses Adeudados": obtenerMesesDeuda(p)
+    };
+  });
+
+  const hoja = XLSX.utils.json_to_sheet(datosFilas);
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Lotes Seleccionados");
+
+  const fechaObj = new Date();
+  const fechaStr = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth() + 1).padStart(2, '0')}-${String(fechaObj.getDate()).padStart(2, '0')}`;
+  
+  XLSX.writeFile(libro, `Lotes_Seleccionados_${fechaStr}.xlsx`);
 };
 
 // Inicialización general

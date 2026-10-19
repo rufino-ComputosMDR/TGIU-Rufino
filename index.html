@@ -236,7 +236,7 @@
   <div class="barra-superior">
     <div class="logo-titulo">
       <button class="btn-toggle-panel" onclick="togglePanelLateral()" title="Ocultar/Mostrar Panel Lateral">☰</button>
-      <img src="logo.png" alt="Logo Rufino" class="logo-header" onerror="this.style.display='none'" />
+      <img src="logo.png" alt="Logo Rufino" class="logo-header" style="filter: brightness(0) invert(1);" onerror="this.style.display='none'" />
       <h1>Catastro TGI Rufino</h1>
     </div>
 
@@ -290,9 +290,12 @@
         </div>
 
         <!-- PANEL INFORMATIVO DE SELECCIÓN MÚLTIPLE -->
-        <div id="panelSeleccionMultiple" style="display:none; background:#e8f8f5; border:1px solid #1abc9c; border-radius:6px; padding:10px; margin-bottom:10px; font-size:12px; align-items:center; justify-content:space-between;">
+        <div id="panelSeleccionMultiple" style="display:none; background:#e8f8f5; border:1px solid #1abc9c; border-radius:6px; padding:10px; margin-bottom:10px; font-size:12px; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
           <span>Seleccionados: <strong id="lblCantSeleccionados">0</strong></span>
-          <button class="btn-barra" style="padding: 4px 8px; font-size: 11px;" onclick="imprimirLotesSeleccionados()">🖨️ Ver / Imprimir PDF</button>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn-barra" style="padding: 4px 8px; font-size: 11px;" onclick="imprimirLotesSeleccionados()">🖨️ PDF</button>
+            <button class="btn-barra" style="padding: 4px 8px; font-size: 11px; background-color: #27ae60;" onclick="descargarExcelSeleccionados()">📊 Excel</button>
+          </div>
         </div>
 
         <!-- TOTALIZADORES EN PANEL LATERAL -->
