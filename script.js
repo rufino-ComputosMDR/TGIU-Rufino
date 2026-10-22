@@ -6,7 +6,8 @@ if (typeof ChartDataLabels !== 'undefined') {
 }
 
 const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
+  maxZoom: 21,         // Permite al mapa hacer zoom hasta el nivel 21
+  maxNativeZoom: 19,   // Indica que las imágenes reales de OSM llegan hasta el 19 (el resto se amplía automáticamente)
   crossOrigin: true,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
@@ -288,16 +289,15 @@ function estiloLote(f) {
     return { color: "#1b4f72", fillColor: "#2980b9", weight: 1.5, fillOpacity: 0.6 };
   }
 
-  // Reglas del Semáforo de Deuda
   const deu = limpiarMontoDeuda(f.properties);
   const mes = obtenerMesesDeuda(f.properties);
 
   if (deu <= 0 || mes === 0) {
-    return { color: "#27ae60", fillColor: "#2ecc71", weight: 0.8, fillOpacity: 0.55 }; // Verde (0 meses / Al día)
+    return { color: "#27ae60", fillColor: "#2ecc71", weight: 0.8, fillOpacity: 0.55 };
   } else if (mes >= 1 && mes <= 3) {
-    return { color: "#f39c12", fillColor: "#f1c40f", weight: 1, fillOpacity: 0.65 }; // Amarillo (1 a 3 meses)
+    return { color: "#f39c12", fillColor: "#f1c40f", weight: 1, fillOpacity: 0.65 };
   } else {
-    return { color: "#c0392b", fillColor: "#e74c3c", weight: 1, fillOpacity: 0.65 }; // Rojo (4+ meses)
+    return { color: "#c0392b", fillColor: "#e74c3c", weight: 1, fillOpacity: 0.65 };
   }
 }
 
@@ -400,7 +400,6 @@ async function cargarDatos() {
       const jsonDeuda = await resDeuda.json();
       const arrayFeaturesDeuda = jsonDeuda.features || (Array.isArray(jsonDeuda) ? jsonDeuda : []);
 
-      // Extraer la fecha ubicada al final del primer campo del primer registro
       if (arrayFeaturesDeuda.length > 0) {
         const primerRegistro = arrayFeaturesDeuda[0].properties || arrayFeaturesDeuda[0];
         const primerCampoNombre = Object.keys(primerRegistro)[0];
@@ -464,6 +463,23 @@ function limpiarResalteLote() {
   }
 }
 
+// ==========================================
+// BÚSQUEDA DE PARCELAS COINCIDENTES POR GEOMETRÍA/COORDENADAS
+// ==========================================
+function obtenerTgisDeLote(featureActual) {
+  if (!datosTgi || !datosTgi.features) return [featureActual];
+
+  // Convertimos la geometría a una cadena JSON para comparar coordenadas exactas
+  const geomStringActual = JSON.stringify(featureActual.geometry);
+
+  // Buscamos todas las parcelas en tgi.geojson que tengan la misma geometría
+  const coincidentes = datosTgi.features.filter(f => {
+    return f.geometry && JSON.stringify(f.geometry) === geomStringActual;
+  });
+
+  return coincidentes.length > 0 ? coincidentes : [featureActual];
+}
+
 function dibujarMapa(features) {
   if (capaTgi) map.removeLayer(capaTgi);
 
@@ -491,7 +507,68 @@ function dibujarMapa(features) {
         l.bringToFront();
         loteResaltadoActual = l;
 
-        mostrarFicha(f.properties);
+        // BUSCAR MÚLTIPLES REGISTROS QUE COMPARTAN COORDENADAS
+        const tgisCoincidentes = obtenerTgisDeLote(f);
+
+        if (tgisCoincidentes.length > 1) {
+          let htmlMenu = `<div style="font-family: Arial, sans-serif; min-width: 230px; max-width: 290px;">
+            <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #1e293b; border-bottom: 2px solid #2563eb; padding-bottom: 4px;">
+              🏢 Unidades en el Inmueble (${tgisCoincidentes.length})
+            </h4>
+            <p style="font-size: 10px; color: #64748b; margin-bottom: 8px;">Seleccione el TGI/Padrón a consultar:</p>
+            <div style="max-height: 200px; overflow-y: auto; padding-right: 2px;">`;
+
+          tgisCoincidentes.forEach((item, idx) => {
+            const p = item.properties;
+            const padron = obtenerDatoGeoJSON(p, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"]);
+            const titular = obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]);
+
+            // Evaluar estado del semáforo para cada unidad
+            const deu = limpiarMontoDeuda(p);
+            const mes = obtenerMesesDeuda(p);
+
+            let colorBorde = "#2ecc71";
+            let colorFondo = "#e8f8f5";
+            let textoEstado = "AL DÍA";
+
+            if (deu > 0 || mes > 0) {
+              if (mes >= 1 && mes <= 3) {
+                colorBorde = "#f1c40f";
+                colorFondo = "#fef9e7";
+                textoEstado = "DEUDA MODERADA";
+              } else {
+                colorBorde = "#e74c3c";
+                colorFondo = "#fadbd8";
+                textoEstado = "DEUDA";
+              }
+            }
+
+            htmlMenu += `
+              <div onclick="seleccionarTgiEspecifico(${idx})" 
+                   style="padding: 7px 10px; font-size: 11px; background: ${colorFondo}; border: 1px solid ${colorBorde}; border-left: 5px solid ${colorBorde}; margin-bottom: 6px; border-radius: 4px; cursor: pointer; transition: transform 0.1s;"
+                   onmouseover="this.style.transform='scale(1.02)'" 
+                   onmouseout="this.style.transform='scale(1)'">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                  <strong style="color: #1e3a8a;">🆔 TGI: ${padron}</strong>
+                  <span style="font-size: 9px; font-weight: bold; background: ${colorBorde}; color: #ffffff; padding: 1px 5px; border-radius: 3px;">${textoEstado}</span>
+                </div>
+                <span style="color: #334155; font-size: 10px; display: block;">👤 ${titular}</span>
+              </div>
+            `;
+          });
+
+          htmlMenu += `</div></div>`;
+
+          window.tgisCoincidentesTemp = tgisCoincidentes;
+
+          L.popup()
+            .setLatLng(e.latlng)
+            .setContent(htmlMenu)
+            .openOn(map);
+
+        } else {
+          mostrarFicha(f.properties);
+        }
 
         const margenMapa = window.innerWidth <= 768 ? [15, 120] : [320, 50];
         map.fitBounds(l.getBounds(), {
@@ -512,6 +589,14 @@ function dibujarMapa(features) {
 
   actualizarEtiquetasPadron();
 }
+
+window.seleccionarTgiEspecifico = function(index) {
+  if (window.tgisCoincidentesTemp && window.tgisCoincidentesTemp[index]) {
+    const featureSeleccionada = window.tgisCoincidentesTemp[index];
+    mostrarFicha(featureSeleccionada.properties);
+    map.closePopup();
+  }
+};
 
 // ==========================================
 // 9. MEDIDAS Y DISTANCIAS
@@ -1767,14 +1852,14 @@ function destacarLotesAfectadosEnMapa() {
     if (padronesObraSeleccionada.size > 0 && padronesObraSeleccionada.has(padronGeoJSON)) {
       const ctasDeuda = padronesObraSeleccionada.get(padronGeoJSON);
       
-      let colorLote = '#10b981'; // Verde (0 cuotas)
+      let colorLote = '#10b981';
       let colorBorde = '#059669';
 
       if (ctasDeuda >= 1 && ctasDeuda <= 3) {
-        colorLote = '#f59e0b'; // Amarillo (1 a 3 cuotas)
+        colorLote = '#f59e0b';
         colorBorde = '#d97706';
       } else if (ctasDeuda >= 4) {
-        colorLote = '#ef4444'; // Rojo (4 o más cuotas)
+        colorLote = '#ef4444';
         colorBorde = '#dc2626';
       }
 
