@@ -7,7 +7,7 @@ if (typeof ChartDataLabels !== 'undefined') {
 
 const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 21,         // Permite al mapa hacer zoom hasta el nivel 21
-  maxNativeZoom: 19,   // Indica que las imágenes reales de OSM llegan hasta el 19 (el resto se amplía automáticamente)
+  maxNativeZoom: 19,   // Indica que las imágenes reales de OSM llegan hasta el 19
   crossOrigin: true,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
@@ -469,10 +469,8 @@ function limpiarResalteLote() {
 function obtenerTgisDeLote(featureActual) {
   if (!datosTgi || !datosTgi.features) return [featureActual];
 
-  // Convertimos la geometría a una cadena JSON para comparar coordenadas exactas
   const geomStringActual = JSON.stringify(featureActual.geometry);
 
-  // Buscamos todas las parcelas en tgi.geojson que tengan la misma geometría
   const coincidentes = datosTgi.features.filter(f => {
     return f.geometry && JSON.stringify(f.geometry) === geomStringActual;
   });
@@ -507,7 +505,6 @@ function dibujarMapa(features) {
         l.bringToFront();
         loteResaltadoActual = l;
 
-        // BUSCAR MÚLTIPLES REGISTROS QUE COMPARTAN COORDENADAS
         const tgisCoincidentes = obtenerTgisDeLote(f);
 
         if (tgisCoincidentes.length > 1) {
@@ -523,7 +520,6 @@ function dibujarMapa(features) {
             const padron = obtenerDatoGeoJSON(p, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"]);
             const titular = obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]);
 
-            // Evaluar estado del semáforo para cada unidad
             const deu = limpiarMontoDeuda(p);
             const mes = obtenerMesesDeuda(p);
 
@@ -974,15 +970,18 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 12. FICHA TÉCNICA CATASTRAL FLOTANTE
+// 12. FICHA TÉCNICA CATASTRAL FLOTANTE (REESTRUCTURADA EN 3 PARTES)
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
   const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
 
+  // Datos Sección 1: Identificación Principal
   const partida = decodificarTexto(obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]));
   const padron = decodificarTexto(obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]));
   const titular = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Tit_Nombre", "Nombre", "NOMBRE"]));
+
+  // Datos Sección 2: Titular, Ubicación, Datos Catastrales y Medidas
   const dni = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Doc.", "TIT. DOC.", "DNI", "dni", "Dni"]));
   const ubicacion = decodificarTexto(obtenerDatoGeoJSON(p, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion"]));
   const manzana = obtenerDatoGeoJSON(p, ["Manzana", "MANZANA"]);
@@ -993,9 +992,9 @@ function mostrarFicha(p) {
   const superficie = obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2"]);
   const ficha = obtenerDatoGeoJSON(p, ["Varios 7", "VARIOS 7", "Ficha Catastral", "FICHA", "Ficha"]);
 
+  // Datos Sección 3: Deuda y Períodos
   const montoDeuda = limpiarMontoDeuda(p);
   const deudaFormateada = formatearMoneda(montoDeuda);
-
   const mesesAdeud = obtenerMesesDeuda(p);
   const deudaFecha = fechaDeudaGeoJSON;
 
@@ -1014,22 +1013,48 @@ function mostrarFicha(p) {
   }
 
   const htmlContenido = `
-    <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
-    <p><strong>PARTIDA:</strong> <span>${partida}</span></p>
-    <p><strong>Padrón:</strong> <span>${padron}</span></p>
-    <p><strong>Tit. Nombre:</strong> <span>${titular}</span></p>
-    <p><strong>DNI:</strong> <span>${dni}</span></p>
-    <p><strong>Ubicación:</strong> <span>${ubicacion}</span></p>
-    <p><strong>Manzana:</strong> <span>${manzana}</span></p>
-    <p><strong>Sección:</strong> <span>${seccion}</span></p>
-    <p><strong>Lote:</strong> <span>${lote}</span></p>
-    <p><strong>Frente 1:</strong> <span>${frente}</span></p>
-    <p><strong>Fondo:</strong> <span>${fondo}</span></p>
-    <p><strong>Superficie:</strong> <span>${superficie}</span></p>
-    <p><strong>Ficha Catastral:</strong> <span>${ficha}</span></p>
-    <p><strong>Deuda TGI:</strong> <span>${deudaFormateada}</span></p>
-    <p><strong>Meses Adeud.TGI:</strong> <span>${mesesAdeud}</span></p>
-    <p><strong>Deuda a la Fecha:</strong> <span>${deudaFecha}</span></p>
+    <!-- BLOQUE 1: IDENTIFICACIÓN PRINCIPAL -->
+    <div class="ficha-seccion bloque-identificacion">
+      <div class="ficha-campo-destacado">
+        <span class="label-ficha">Padrón TGI</span>
+        <span class="valor-ficha-bold"># ${padron}</span>
+      </div>
+      <div class="ficha-campo-destacado">
+        <span class="label-ficha">Partida</span>
+        <span class="valor-ficha-bold">${partida}</span>
+      </div>
+      <div class="ficha-campo-destacado col-span-2">
+        <span class="label-ficha">Titular</span>
+        <span class="valor-ficha-titular">👤 ${titular}</span>
+      </div>
+    </div>
+
+    <!-- BLOQUE 2: DATOS DEL TITULAR, UBICACIÓN Y MEDIDAS CATASTRALES -->
+    <div class="ficha-seccion">
+      <div class="ficha-subtitulo">📍 Datos Catastrales y Ubicación</div>
+      <div class="ficha-grid-2col">
+        <p><strong>DNI / Doc:</strong> <span>${dni}</span></p>
+        <p><strong>Ubicación:</strong> <span>${ubicacion}</span></p>
+        <p><strong>Manzana:</strong> <span>${manzana}</span></p>
+        <p><strong>Sección:</strong> <span>${seccion}</span></p>
+        <p><strong>Lote:</strong> <span>${lote}</span></p>
+        <p><strong>Frente:</strong> <span>${frente !== '-' ? frente + ' m' : '-'}</span></p>
+        <p><strong>Fondo:</strong> <span>${fondo !== '-' ? fondo + ' m' : '-'}</span></p>
+        <p><strong>Superficie:</strong> <span>${superficie !== '-' ? superficie + ' m²' : '-'}</span></p>
+        <p class="col-span-2"><strong>Ficha Catastral:</strong> <span>${ficha}</span></p>
+      </div>
+    </div>
+
+    <!-- BLOQUE 3: DEUDA Y PERÍODOS -->
+    <div class="ficha-seccion bloque-deuda">
+      <div class="ficha-subtitulo" style="border-bottom-color: #cbd5e1;">💳 Estado Financiero y Deuda</div>
+      <div class="ficha-grid-deuda">
+        <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
+        <p><strong>Monto Deuda:</strong> <span class="monto-deuda-ficha">${deudaFormateada}</span></p>
+        <p><strong>Meses Adeudados:</strong> <span>${mesesAdeud} ${mesesAdeud === 1 ? 'mes' : 'meses'}</span></p>
+        <p><strong>Fecha Liquidación:</strong> <span>${deudaFecha}</span></p>
+      </div>
+    </div>
   `;
 
   if (cuerpoFlotante) {

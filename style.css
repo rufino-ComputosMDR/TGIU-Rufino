@@ -19,11 +19,12 @@
   /* ==========================================
      BARRA SUPERIOR DE HERRAMIENTAS Y LOGO
      ========================================== */
-     .logo-encabezado, 
-     .barra-superior img {
-       filter: brightness(0) invert(1) !important;
-     }
-     .barra-superior {
+  .logo-encabezado, 
+  .barra-superior img {
+    filter: brightness(0) invert(1) !important;
+  }
+  
+  .barra-superior {
     height: 50px;
     background-color: #2c3e50;
     color: #ecf0f1;
@@ -345,22 +346,23 @@
   }
   
   /* ==========================================
-     FICHA TÉCNICA FLOTANTE
+     FICHA TÉCNICA FLOTANTE (ESTRUCTURA Y ESTILOS EN 3 PARTES)
      ========================================== */
   #panelFichaFlotante {
     position: absolute;
     bottom: 25px;
     right: 25px;
-    width: 310px;
-    max-height: 440px;
+    width: 340px !important;
+    max-height: 520px !important;
     background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    border-radius: 10px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25) !important;
     z-index: 1500;
     display: none;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #dcdfe6;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #f8fafc !important;
   }
   
   .cabecera-ficha, .encabezado-ficha {
@@ -375,18 +377,127 @@
   }
   
   .cuerpo-ficha {
-    padding: 12px;
+    padding: 10px !important;
     overflow-y: auto;
     font-size: 12px;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
   }
   
-  .cuerpo-ficha p {
-    margin-bottom: 6px;
+  /* BLOQUES / SECCIONES */
+  .ficha-seccion {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  
+  .ficha-subtitulo {
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    border-bottom: 2px solid #3b82f6;
+    padding-bottom: 3px;
+  }
+  
+  /* BLOQUE 1: CABECERA Y DATOS PRINCIPALES */
+  .bloque-identificacion {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #ffffff;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    border: none;
+  }
+  
+  .ficha-campo-destacado {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px dashed #e9ecef;
-    padding-bottom: 4px;
+    flex-direction: column;
+  }
+  
+  .label-ficha {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+  
+  .valor-ficha-bold {
+    font-size: 13px;
+    font-weight: 800;
+    color: #38bdf8;
+  }
+  
+  .valor-ficha-titular {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+  
+  .col-span-2 {
+    grid-column: span 2;
+  }
+  
+  /* BLOQUE 2: GRID DE DATOS Y MEDIDAS */
+  .ficha-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+  }
+  
+  .ficha-grid-2col p {
+    margin: 0 !important;
+    padding: 2px 0 !important;
+    border-bottom: 1px dashed #f1f5f9 !important;
+    font-size: 11px !important;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ficha-grid-2col p strong {
+    color: #64748b;
+    font-size: 10px;
+  }
+  
+  .ficha-grid-2col p span {
+    color: #1e293b;
+    font-weight: 600;
+  }
+  
+  /* BLOQUE 3: DEUDA Y MESES */
+  .bloque-deuda {
+    background: #f8fafc;
+    border-left: 4px solid #0284c7;
+  }
+  
+  .ficha-grid-deuda {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+  }
+  
+  .ficha-grid-deuda p {
+    margin: 0 !important;
+    padding: 3px 0 !important;
+    font-size: 11px !important;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ficha-grid-deuda p strong {
+    color: #475569;
+    font-size: 10px;
+  }
+  
+  .monto-deuda-ficha {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    color: #b91c1c !important;
   }
   
   .btn-cerrar {
@@ -448,7 +559,7 @@
     pointer-events: none;
     white-space: nowrap;
   }
-
+  
   /* ==========================================
      ETIQUETAS COMPACTAS DE MEDIDAS DE LOTE
      ========================================== */
@@ -466,8 +577,7 @@
     white-space: nowrap !important;
     line-height: 12px !important;
   }
-
-  /* Ocultar flechas o puntas por defecto del tooltip de Leaflet */
+  
   .leaflet-tooltip-top.etiqueta-medida-lote::before,
   .leaflet-tooltip-bottom.etiqueta-medida-lote::before,
   .leaflet-tooltip-left.etiqueta-medida-lote::before,
@@ -503,7 +613,6 @@
      ADAPTACIÓN PARA DISPOSITIVOS MÓVILES (RESPONSIVE)
      ========================================== */
   @media (max-width: 768px) {
-    /* 1. BARRA SUPERIOR */
     .barra-superior {
       height: auto;
       flex-direction: column;
@@ -521,7 +630,6 @@
       font-size: 13px;
     }
   
-    /* Buscador adaptable en móviles */
     .barra-superior > div[style*="display: flex"] {
       width: 100%;
       justify-content: space-between;
@@ -531,7 +639,6 @@
       width: 100% !important;
     }
   
-    /* Botones de acción rápida en grid responsivo */
     .controles-rapidos {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -545,7 +652,6 @@
       text-align: center;
     }
   
-    /* 2. ESTRUCTURA Y PANEL LATERAL OVERLAY */
     .contenedor-principal {
       height: calc(100vh - 120px);
     }
@@ -566,7 +672,6 @@
       margin-left: 0;
     }
   
-    /* 3. FICHA TÉCNICA Y GRÁFICO FLOTANTE */
     #panelFichaFlotante {
       left: 10px !important;
       right: 10px !important;
@@ -583,7 +688,6 @@
       height: 250px !important;
     }
   
-    /* 4. MODALES Y TABLAS EN MÓVIL */
     .modal-pdf-contenido {
       width: 95% !important;
       height: 95vh !important;
