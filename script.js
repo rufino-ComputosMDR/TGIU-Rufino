@@ -400,14 +400,12 @@ async function cargarDatos() {
       const jsonDeuda = await resDeuda.json();
       const arrayFeaturesDeuda = jsonDeuda.features || (Array.isArray(jsonDeuda) ? jsonDeuda : []);
 
-      if (arrayFeaturesDeuda.length > 0) {
-        const primerRegistro = arrayFeaturesDeuda[0].properties || arrayFeaturesDeuda[0];
-        const primerCampoNombre = Object.keys(primerRegistro)[0];
-        const valorPrimerCampo = String(primerRegistro[primerCampoNombre] || "").trim();
-
-        const matchFecha = valorPrimerCampo.match(/\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b$/);
-        if (matchFecha) {
-          fechaDeudaGeoJSON = matchFecha[1];
+      // Búsqueda dinámica de la fecha global del GeoJSON (propiedad "Fecha")
+      for (const item of arrayFeaturesDeuda) {
+        const props = item.properties || item;
+        if (props && props["Fecha"] && String(props["Fecha"]).trim() !== "") {
+          fechaDeudaGeoJSON = String(props["Fecha"]).trim();
+          break; // Captura la fecha dinámicamente y detiene la búsqueda
         }
       }
 
@@ -970,11 +968,25 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 12. FICHA TÉCNICA CATASTRAL FLOTANTE (REESTRUCTURADA EN 3 PARTES)
+// 12. FICHA TÉCNICA CATASTRAL FLOTANTE
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
   const cuerpoFlotante = document.getElementById('cuerpoFichaContenido');
+
+  // Actualizar cabecera con botón de imprimir
+  const cabeceraFicha = document.querySelector('#panelFichaFlotante .cabecera-ficha');
+  if (cabeceraFicha) {
+    cabeceraFicha.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span>Ficha Catastral</span>
+        <button class="btn-pdf btn-pdf-imprimir" style="padding: 3px 8px; font-size: 11px;" onclick="imprimirFichaCatastral()">
+          🖨️ Imprimir Ficha
+        </button>
+      </div>
+      <span style="cursor:pointer;" onclick="cerrarFicha()">✕</span>
+    `;
+  }
 
   // Datos Sección 1: Identificación Principal
   const partida = decodificarTexto(obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]));
@@ -996,7 +1008,10 @@ function mostrarFicha(p) {
   const montoDeuda = limpiarMontoDeuda(p);
   const deudaFormateada = formatearMoneda(montoDeuda);
   const mesesAdeud = obtenerMesesDeuda(p);
-  const deudaFecha = fechaDeudaGeoJSON;
+
+  // Toma dinámicamente el campo "Fecha" de la parcela o la fecha global capturada del GeoJSON
+  const valFechaLote = obtenerDatoGeoJSON(p, ["Fecha", "FECHA", "deudafecha", "DeudaFecha"]);
+  const deudaFecha = (valFechaLote !== "-") ? valFechaLote : fechaDeudaGeoJSON;
 
   let claseEstado = "al-dia";
   let textoEstado = "AL DÍA";
@@ -2168,6 +2183,238 @@ window.descargarExcelSeleccionados = function () {
   const fechaStr = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth() + 1).padStart(2, '0')}-${String(fechaObj.getDate()).padStart(2, '0')}`;
   
   XLSX.writeFile(libro, `Lotes_Seleccionados_${fechaStr}.xlsx`);
+};
+
+// ==========================================
+// IMPRESIÓN COMPLETA DE FICHA + PLANO DE MANZANA
+// ==========================================
+window.imprimirFichaCatastral = function () {
+  const contenidoFicha = document.getElementById('cuerpoFichaContenido');
+  if (!contenidoFicha || !loteSeleccionadoActual) {
+    return alert("Por favor, seleccione un lote en el mapa antes de imprimir la ficha.");
+  }
+
+  if (typeof html2canvas === 'undefined') {
+    return alert("La librería html2canvas no está cargada en la página.");
+  }
+
+  // 1. Obtener datos clave del lote seleccionado
+  const feature = loteSeleccionadoActual.feature;
+  const p = feature.properties || {};
+  const padron = obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]);
+
+  // 2. Crear una etiqueta dinámicamente centrada en el lote para la captura
+  const grupoTempPadron = L.layerGroup();
+  try {
+    const boundsLote = loteSeleccionadoActual.getBounds();
+    if (boundsLote && boundsLote.isValid()) {
+      const centro = boundsLote.getCenter();
+      const nw = boundsLote.getNorthWest();
+      const se = boundsLote.getSouthEast();
+
+      const pxNW = map.latLngToLayerPoint(nw);
+      const pxSE = map.latLngToLayerPoint(se);
+
+      const anchoPx = Math.abs(pxSE.x - pxNW.x);
+      const altoPx = Math.abs(pxSE.y - pxNW.y);
+
+      const htmlLabel = `
+        <div style="
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent !important;
+          border: none !important;
+        ">
+          <span style="
+            font-size: 14px;
+            font-weight: 900;
+            font-family: Arial, sans-serif;
+            color: #000000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1.5px solid #111;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          ">${padron}</span>
+        </div>
+      `;
+
+      const iconoPadron = L.divIcon({
+        className: 'etiqueta-padron-impresion-ficha',
+        html: htmlLabel,
+        iconSize: [anchoPx, altoPx],
+        iconAnchor: [anchoPx / 2, altoPx / 2]
+      });
+
+      const markerPadron = L.marker(centro, { icon: iconoPadron, interactive: false });
+      grupoTempPadron.addLayer(markerPadron);
+      grupoTempPadron.addTo(map);
+    }
+  } catch (e) {
+    console.warn("Error creando etiqueta temporal de padrón:", e);
+  }
+
+  // 3. Ajustar zoom/encuadre para que se vea la manzana completa con contexto
+  map.fitBounds(loteSeleccionadoActual.getBounds(), { padding: [80, 80] });
+
+  // 4. Capturar el mapa visualmente con html2canvas
+  const mapElement = document.getElementById('map');
+  modoCapturaImpresion = true;
+
+  setTimeout(() => {
+    html2canvas(mapElement, {
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      ignoreElements: (element) => element.classList.contains('leaflet-control-container')
+    }).then(canvas => {
+      const imgMapaReal = canvas.toDataURL('image/png');
+
+      // Restaurar estado del mapa y quitar la etiqueta temporal
+      modoCapturaImpresion = false;
+      map.removeLayer(grupoTempPadron);
+      if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+
+      // Estilos CSS de la página actual
+      const estilosPagina = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(el => el.outerHTML)
+        .join('\n');
+
+      const fechaActual = new Date();
+      const fechaFormateada = `${fechaActual.getDate()}/${fechaActual.getMonth() + 1}/${fechaActual.getFullYear()} ${String(fechaActual.getHours()).padStart(2, '0')}:${String(fechaActual.getMinutes()).padStart(2, '0')}`;
+
+      // 5. Construir ventana de impresión compuesta (Ficha + Plano)
+      const ventanaImpresion = window.open('', '_blank', 'height=900,width=850');
+      if (!ventanaImpresion) return alert("Permita las ventanas emergentes para imprimir la ficha.");
+
+      ventanaImpresion.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+          <head>
+            <meta charset="UTF-8">
+            <title>Ficha Catastral y Plano - Padrón ${padron}</title>
+            ${estilosPagina}
+            <style>
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              body {
+                background: #ffffff !important;
+                padding: 10px 20px !important;
+                font-family: 'Segoe UI', Arial, sans-serif !important;
+                color: #1e293b;
+              }
+              .header-documento {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #2c3e50;
+                padding-bottom: 6px;
+                margin-bottom: 10px;
+              }
+              .header-documento h1 {
+                font-size: 16px;
+                margin: 0;
+                color: #2c3e50;
+              }
+              .header-documento span {
+                font-size: 10px;
+                color: #64748b;
+              }
+              .contenedor-impresion-compuesta {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                max-width: 750px;
+                margin: 0 auto;
+              }
+              .bloque-ficha-print {
+                background: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 10px;
+              }
+              .bloque-plano-print {
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 8px;
+                background: #ffffff;
+                text-align: center;
+              }
+              .bloque-plano-print h3 {
+                font-size: 11px;
+                margin: 0 0 6px 0;
+                color: #334155;
+                text-transform: uppercase;
+                text-align: left;
+                border-bottom: 1px solid #e2e8f0;
+                padding-bottom: 3px;
+              }
+              .img-plano {
+                width: 100%;
+                max-height: 120mm;
+                object-fit: contain;
+                border: 1px solid #e2e8f0;
+                border-radius: 4px;
+              }
+              @page {
+                size: A4 portrait;
+                margin: 8mm;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="contenedor-impresion-compuesta">
+              
+              <!-- ENCABEZADO INSTITUCIONAL -->
+              <div class="header-documento">
+                <div>
+                  <h1>Municipalidad de Rufino — Catastro TGI</h1>
+                  <span>Informe Integrado de Ficha Catastral y Plano de Ubicación</span>
+                </div>
+                <div style="text-align: right;">
+                  <span>Emisión: ${fechaFormateada}</span>
+                </div>
+              </div>
+
+              <!-- SECCIÓN 1: CONTENIDO DE LA FICHA -->
+              <div class="bloque-ficha-print">
+                ${contenidoFicha.innerHTML}
+              </div>
+
+              <!-- SECCIÓN 2: PLANO DE LA MANZANA CON EL LOTE Y PADRÓN DESTACADOS -->
+              <div class="bloque-plano-print">
+                <h3>📍 Plano Catastral de Ubicación (Manzana y Parcela)</h3>
+                <img src="${imgMapaReal}" class="img-plano" alt="Plano Catastral" />
+              </div>
+
+            </div>
+          </body>
+        </html>
+      `);
+
+      ventanaImpresion.document.close();
+      ventanaImpresion.focus();
+
+      setTimeout(() => {
+        ventanaImpresion.print();
+        ventanaImpresion.close();
+      }, 500);
+
+    }).catch(err => {
+      modoCapturaImpresion = false;
+      map.removeLayer(grupoTempPadron);
+      if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
+      console.error("Error generando captura del plano:", err);
+      alert("Ocurrió un error al generar la vista del mapa.");
+    });
+  }, 400);
 };
 
 // Inicialización general

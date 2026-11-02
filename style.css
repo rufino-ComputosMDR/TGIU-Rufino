@@ -346,167 +346,167 @@
   }
   
   /* ==========================================
-   FICHA TÉCNICA FLOTANTE (VERSIÓN COMPACTA Y ACLARADA)
-   ========================================== */
-#panelFichaFlotante {
-  position: absolute;
-  bottom: 25px;
-  right: 25px;
-  width: 300px !important;
-  max-height: 80vh !important;
-  background: #ffffff;
-  border-radius: 8px !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2) !important;
-  z-index: 1500;
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #cbd5e1 !important;
-  background-color: #f8fafc !important;
-}
-
-.cabecera-ficha, .encabezado-ficha {
-  background: #2c3e50;
-  color: white;
-  padding: 6px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.cuerpo-ficha {
-  padding: 6px !important;
-  overflow-y: auto;
-  font-size: 11px;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-}
-
-/* BLOQUES / SECCIONES COMPACTAS */
-.ficha-seccion {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 6px 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.ficha-subtitulo {
-  font-size: 10px;
-  font-weight: 700;
-  color: #334155;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 4px;
-  border-bottom: 1.5px solid #3b82f6;
-  padding-bottom: 2px;
-}
-
-/* BLOQUE 1: IDENTIFICACIÓN PRINCIPAL CON FONDO CLARO Y TEXTO OSCURO */
-.bloque-identificacion {
-  background: #f0f7ff !important;
-  border: 1px solid #bae6fd !important;
-  color: #0f172a !important;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 6px;
-}
-
-.ficha-campo-destacado {
-  display: flex;
-  flex-direction: column;
-}
-
-.label-ficha {
-  font-size: 8px;
-  text-transform: uppercase;
-  color: #475569;
-  font-weight: 700;
-}
-
-.valor-ficha-bold {
-  font-size: 11px;
-  font-weight: 800;
-  color: #0284c7;
-}
-
-.valor-ficha-titular {
-  font-size: 11px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.col-span-2 {
-  grid-column: span 2;
-}
-
-/* BLOQUE 2: GRID DE DATOS Y MEDIDAS */
-.ficha-grid-2col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 8px;
-}
-
-.ficha-grid-2col p {
-  margin: 0 !important;
-  padding: 1px 0 !important;
-  border-bottom: 1px dashed #f1f5f9 !important;
-  font-size: 10px !important;
-  display: flex;
-  flex-direction: column;
-}
-
-.ficha-grid-2col p strong {
-  color: #64748b;
-  font-size: 9px;
-}
-
-.ficha-grid-2col p span {
-  color: #1e293b;
-  font-weight: 600;
-}
-
-/* BLOQUE 3: DEUDA Y MESES */
-.bloque-deuda {
-  background: #f8fafc;
-  border-left: 3px solid #0284c7;
-}
-
-.ficha-grid-deuda {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 8px;
-}
-
-.ficha-grid-deuda p {
-  margin: 0 !important;
-  padding: 2px 0 !important;
-  font-size: 10px !important;
-  display: flex;
-  flex-direction: column;
-}
-
-.ficha-grid-deuda p strong {
-  color: #475569;
-  font-size: 9px;
-}
-
-.monto-deuda-ficha {
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  color: #b91c1c !important;
-}
-
-.btn-cerrar {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-}
+     FICHA TÉCNICA FLOTANTE (VERSIÓN COMPACTA Y ACLARADA)
+     ========================================== */
+  #panelFichaFlotante {
+    position: absolute;
+    bottom: 25px;
+    right: 25px;
+    width: 300px !important;
+    max-height: 80vh !important;
+    background: #ffffff;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2) !important;
+    z-index: 1500;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #f8fafc !important;
+  }
+  
+  .cabecera-ficha, .encabezado-ficha {
+    background: #2c3e50;
+    color: white;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  
+  .cuerpo-ficha {
+    padding: 6px !important;
+    overflow-y: auto;
+    font-size: 11px;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  
+  /* BLOQUES / SECCIONES COMPACTAS */
+  .ficha-seccion {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  
+  .ficha-subtitulo {
+    font-size: 10px;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+    border-bottom: 1.5px solid #3b82f6;
+    padding-bottom: 2px;
+  }
+  
+  /* BLOQUE 1: IDENTIFICACIÓN PRINCIPAL CON FONDO CLARO Y TEXTO OSCURO */
+  .bloque-identificacion {
+    background: #f0f7ff !important;
+    border: 1px solid #bae6fd !important;
+    color: #0f172a !important;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 6px;
+  }
+  
+  .ficha-campo-destacado {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .label-ficha {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: #475569;
+    font-weight: 700;
+  }
+  
+  .valor-ficha-bold {
+    font-size: 11px;
+    font-weight: 800;
+    color: #0284c7;
+  }
+  
+  .valor-ficha-titular {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  
+  .col-span-2 {
+    grid-column: span 2;
+  }
+  
+  /* BLOQUE 2: GRID DE DATOS Y MEDIDAS */
+  .ficha-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 8px;
+  }
+  
+  .ficha-grid-2col p {
+    margin: 0 !important;
+    padding: 1px 0 !important;
+    border-bottom: 1px dashed #f1f5f9 !important;
+    font-size: 10px !important;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ficha-grid-2col p strong {
+    color: #64748b;
+    font-size: 9px;
+  }
+  
+  .ficha-grid-2col p span {
+    color: #1e293b;
+    font-weight: 600;
+  }
+  
+  /* BLOQUE 3: DEUDA Y MESES */
+  .bloque-deuda {
+    background: #f8fafc;
+    border-left: 3px solid #0284c7;
+  }
+  
+  .ficha-grid-deuda {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 8px;
+  }
+  
+  .ficha-grid-deuda p {
+    margin: 0 !important;
+    padding: 2px 0 !important;
+    font-size: 10px !important;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ficha-grid-deuda p strong {
+    color: #475569;
+    font-size: 9px;
+  }
+  
+  .monto-deuda-ficha {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    color: #b91c1c !important;
+  }
+  
+  .btn-cerrar {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+  }
   
   /* ==========================================
      PANEL GRÁFICO FLOTANTE COMPACTO
@@ -607,6 +607,32 @@
   
   .panel-filtros-oculto {
     display: none !important;
+  }
+  
+  /* ==========================================
+     ESTILOS DE IMPRESIÓN PARA LA FICHA CATASTRAL
+     ========================================== */
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #panelFichaFlotante, #panelFichaFlotante * {
+      visibility: visible;
+    }
+    #panelFichaFlotante {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      box-shadow: none !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+    .cabecera-ficha button,
+    .cabecera-ficha span:last-child {
+      display: none !important;
+    }
   }
   
   /* ==========================================
