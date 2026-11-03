@@ -405,7 +405,7 @@ async function cargarDatos() {
         const props = item.properties || item;
         if (props && props["Fecha"] && String(props["Fecha"]).trim() !== "") {
           fechaDeudaGeoJSON = String(props["Fecha"]).trim();
-          break; // Captura la fecha dinámicamente y detiene la búsqueda
+          break;
         }
       }
 
@@ -1498,7 +1498,7 @@ window.imprimirLotesSeleccionados = function () {
           <div style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
               <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="logo.png" style="height: 36px; width: auto; object-fit: contain; filter: brightness(0) invert(1);" alt="Logo" onerror="this.style.display='none'" />
+                <img src="logo.png" style="height: 36px; width: auto; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
                 <div>
                   <h1 style="margin: 0; font-size: 16px; font-weight: bold; color: #2c3e50;">Municipalidad de Rufino</h1>
                   <h2 style="margin: 2px 0 0 0; font-size: 11px; color: #7f8c8d; font-weight: normal;">Planilla Técnica de Lotes Seleccionados</h2>
@@ -1533,7 +1533,7 @@ window.imprimirLotesSeleccionados = function () {
           <div style="padding-top: 5px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px;">
               <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="logo.png" style="height: 34px; width: auto; object-fit: contain; filter: brightness(0) invert(1);" alt="Logo" onerror="this.style.display='none'" />
+                <img src="logo.png" style="height: 34px; width: auto; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
                 <div>
                   <h1 style="margin: 0; font-size: 15px; font-weight: bold; color: #2c3e50;">Plano de la Manzana / Ubicación</h1>
                   <h2 style="margin: 2px 0 0 0; font-size: 10px; color: #7f8c8d; font-weight: normal;">Vista catastral de los lotes seleccionados</h2>
@@ -2186,7 +2186,7 @@ window.descargarExcelSeleccionados = function () {
 };
 
 // ==========================================
-// IMPRESIÓN COMPLETA DE FICHA + PLANO DE MANZANA
+// IMPRESIÓN CON LETRAS MÁS GRANDES EN LA FICHA
 // ==========================================
 window.imprimirFichaCatastral = function () {
   const contenidoFicha = document.getElementById('cuerpoFichaContenido');
@@ -2198,98 +2198,60 @@ window.imprimirFichaCatastral = function () {
     return alert("La librería html2canvas no está cargada en la página.");
   }
 
-  // 1. Obtener datos clave del lote seleccionado
   const feature = loteSeleccionadoActual.feature;
   const p = feature.properties || {};
   const padron = obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]);
 
-  // 2. Crear una etiqueta dinámicamente centrada en el lote para la captura
-  const grupoTempPadron = L.layerGroup();
-  try {
-    const boundsLote = loteSeleccionadoActual.getBounds();
-    if (boundsLote && boundsLote.isValid()) {
-      const centro = boundsLote.getCenter();
-      const nw = boundsLote.getNorthWest();
-      const se = boundsLote.getSouthEast();
-
-      const pxNW = map.latLngToLayerPoint(nw);
-      const pxSE = map.latLngToLayerPoint(se);
-
-      const anchoPx = Math.abs(pxSE.x - pxNW.x);
-      const altoPx = Math.abs(pxSE.y - pxNW.y);
-
-      const htmlLabel = `
-        <div style="
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: transparent !important;
-          border: none !important;
-        ">
-          <span style="
-            font-size: 14px;
-            font-weight: 900;
-            font-family: Arial, sans-serif;
-            color: #000000;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1.5px solid #111;
-            white-space: nowrap;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          ">${padron}</span>
-        </div>
-      `;
-
-      const iconoPadron = L.divIcon({
-        className: 'etiqueta-padron-impresion-ficha',
-        html: htmlLabel,
-        iconSize: [anchoPx, altoPx],
-        iconAnchor: [anchoPx / 2, altoPx / 2]
-      });
-
-      const markerPadron = L.marker(centro, { icon: iconoPadron, interactive: false });
-      grupoTempPadron.addLayer(markerPadron);
-      grupoTempPadron.addTo(map);
-    }
-  } catch (e) {
-    console.warn("Error creando etiqueta temporal de padrón:", e);
+  // 1. Estilos de capas
+  if (capaTgi) {
+    capaTgi.eachLayer(layer => {
+      if (layer === loteSeleccionadoActual) {
+        layer.setStyle({
+          color: '#111111',
+          fillColor: '#ff0055',
+          weight: 3,
+          fillOpacity: 0.95
+        });
+        layer.bringToFront();
+      } else {
+        layer.setStyle({
+          color: '#94a3b8',
+          fillColor: '#cbd5e1',
+          weight: 0.8,
+          fillOpacity: 0.25
+        });
+      }
+    });
   }
 
-  // 3. Ajustar zoom/encuadre para que se vea la manzana completa con contexto
-  map.fitBounds(loteSeleccionadoActual.getBounds(), { padding: [80, 80] });
+  // 2. Guardar estado del mapa y aplicar encuadre
+  const centroOriginal = map.getCenter();
+  const zoomOriginal = map.getZoom();
+  map.fitBounds(loteSeleccionadoActual.getBounds(), { padding: [220, 220], animate: false });
 
-  // 4. Capturar el mapa visualmente con html2canvas
   const mapElement = document.getElementById('map');
-  modoCapturaImpresion = true;
 
+  // 3. Captura del mapa
   setTimeout(() => {
     html2canvas(mapElement, {
       useCORS: true,
-      allowTaint: false,
+      allowTaint: true,
+      scale: 1.5,
       logging: false,
       ignoreElements: (element) => element.classList.contains('leaflet-control-container')
     }).then(canvas => {
-      const imgMapaReal = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png');
 
-      // Restaurar estado del mapa y quitar la etiqueta temporal
-      modoCapturaImpresion = false;
-      map.removeLayer(grupoTempPadron);
+      // Restaurar mapa interactivo
+      map.setView(centroOriginal, zoomOriginal, { animate: false });
       if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
-
-      // Estilos CSS de la página actual
-      const estilosPagina = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-        .map(el => el.outerHTML)
-        .join('\n');
 
       const fechaActual = new Date();
       const fechaFormateada = `${fechaActual.getDate()}/${fechaActual.getMonth() + 1}/${fechaActual.getFullYear()} ${String(fechaActual.getHours()).padStart(2, '0')}:${String(fechaActual.getMinutes()).padStart(2, '0')}`;
 
-      // 5. Construir ventana de impresión compuesta (Ficha + Plano)
-      const ventanaImpresion = window.open('', '_blank', 'height=900,width=850');
-      if (!ventanaImpresion) return alert("Permita las ventanas emergentes para imprimir la ficha.");
+      // 4. Ventana de impresión con fuentes aumentadas
+      const ventanaImpresion = window.open('', '_blank', 'width=850,height=900');
+      if (!ventanaImpresion) return alert("Permita las ventanas emergentes en su navegador.");
 
       ventanaImpresion.document.write(`
         <!DOCTYPE html>
@@ -2297,17 +2259,17 @@ window.imprimirFichaCatastral = function () {
           <head>
             <meta charset="UTF-8">
             <title>Ficha Catastral y Plano - Padrón ${padron}</title>
-            ${estilosPagina}
             <style>
               * {
+                box-sizing: border-box;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                color-adjust: exact !important;
               }
               body {
-                background: #ffffff !important;
-                padding: 10px 20px !important;
-                font-family: 'Segoe UI', Arial, sans-serif !important;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin: 0;
+                padding: 12px 20px;
+                background: #ffffff;
                 color: #1e293b;
               }
               .header-documento {
@@ -2315,40 +2277,135 @@ window.imprimirFichaCatastral = function () {
                 justify-content: space-between;
                 align-items: center;
                 border-bottom: 2px solid #2c3e50;
-                padding-bottom: 6px;
+                padding-bottom: 8px;
                 margin-bottom: 10px;
               }
+              .logo-e-titulo {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+              }
+              .logo-impresion {
+                height: 48px;
+                width: auto;
+                object-fit: contain;
+              }
               .header-documento h1 {
-                font-size: 16px;
+                font-size: 18px;
                 margin: 0;
                 color: #2c3e50;
               }
               .header-documento span {
-                font-size: 10px;
+                font-size: 12px;
                 color: #64748b;
+                font-weight: 600;
               }
-              .contenedor-impresion-compuesta {
+              .contenedor-print {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
-                max-width: 750px;
+                gap: 10px;
+                max-width: 780px;
                 margin: 0 auto;
               }
               .bloque-ficha-print {
-                background: #ffffff;
-                border: 1px solid #cbd5e1;
+                background: #f8fafc;
+                border: 1.5px solid #cbd5e1;
                 border-radius: 6px;
                 padding: 10px;
               }
+
+              /* AUMENTO DE TIPOGRAFÍA EN CAMPOS Y TEXTOS DE LA FICHA */
+              .ficha-seccion {
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 8px 12px;
+                margin-bottom: 8px;
+              }
+              .bloque-identificacion {
+                background: #f0f7ff !important;
+                border: 1.5px solid #bae6fd !important;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px 12px;
+              }
+              .label-ficha { 
+                font-size: 11px !important; 
+                text-transform: uppercase; 
+                color: #475569; 
+                font-weight: 700; 
+              }
+              .valor-ficha-bold { 
+                font-size: 15px !important; 
+                font-weight: 800; 
+                color: #0284c7; 
+              }
+              .valor-ficha-titular { 
+                font-size: 15px !important; 
+                font-weight: 800; 
+                color: #0f172a; 
+              }
+              .col-span-2 { grid-column: span 2; }
+              
+              .ficha-subtitulo { 
+                font-size: 13px !important; 
+                font-weight: 800; 
+                color: #1e293b; 
+                text-transform: uppercase; 
+                border-bottom: 2px solid #3b82f6; 
+                padding-bottom: 3px;
+                margin-bottom: 6px; 
+              }
+              
+              .ficha-grid-2col, .ficha-grid-deuda { 
+                display: grid; 
+                grid-template-columns: 1fr 1fr; 
+                gap: 6px 16px; 
+              }
+              .ficha-grid-2col p, .ficha-grid-deuda p { 
+                margin: 0; 
+                font-size: 13px !important; 
+                display: flex; 
+                flex-direction: column; 
+              }
+              .ficha-grid-2col p strong, .ficha-grid-deuda p strong { 
+                color: #475569; 
+                font-size: 11px !important; 
+                text-transform: uppercase;
+              }
+              .ficha-grid-2col p span, .ficha-grid-deuda p span {
+                font-size: 13px !important;
+                font-weight: 700;
+                color: #0f172a;
+              }
+              .monto-deuda-ficha { 
+                font-size: 15px !important; 
+                font-weight: 800; 
+                color: #b91c1c; 
+              }
+              .badge-tgi { 
+                display: inline-block; 
+                padding: 3px 8px; 
+                font-size: 11px !important; 
+                font-weight: bold; 
+                border-radius: 4px; 
+                color: #fff; 
+                text-align: center; 
+                width: fit-content;
+              }
+              .badge-tgi.al-dia { background-color: #2ecc71; }
+              .badge-tgi.a-vencer { background-color: #f1c40f; color: #2c3e50; }
+              .badge-tgi.con-deuda { background-color: #e74c3c; }
+
               .bloque-plano-print {
-                border: 1px solid #cbd5e1;
+                border: 1.5px solid #cbd5e1;
                 border-radius: 6px;
                 padding: 8px;
                 background: #ffffff;
                 text-align: center;
               }
               .bloque-plano-print h3 {
-                font-size: 11px;
+                font-size: 12px;
                 margin: 0 0 6px 0;
                 color: #334155;
                 text-transform: uppercase;
@@ -2358,63 +2415,62 @@ window.imprimirFichaCatastral = function () {
               }
               .img-plano {
                 width: 100%;
-                max-height: 120mm;
+                max-height: 105mm;
                 object-fit: contain;
                 border: 1px solid #e2e8f0;
                 border-radius: 4px;
               }
-              @page {
-                size: A4 portrait;
-                margin: 8mm;
-              }
+              @page { size: A4 portrait; margin: 6mm; }
             </style>
           </head>
           <body>
-            <div class="contenedor-impresion-compuesta">
+            <div class="contenedor-print">
               
-              <!-- ENCABEZADO INSTITUCIONAL -->
               <div class="header-documento">
-                <div>
-                  <h1>Municipalidad de Rufino — Catastro TGI</h1>
-                  <span>Informe Integrado de Ficha Catastral y Plano de Ubicación</span>
+                <div class="logo-e-titulo">
+                  <img src="logo.png" class="logo-impresion" alt="Logo Municipalidad" onerror="this.style.display='none'" />
+                  <div>
+                    <h1>Municipalidad de Rufino — Catastro TGI</h1>
+                    <span>Informe Integrado de Ficha Catastral y Plano de Ubicación</span>
+                  </div>
                 </div>
                 <div style="text-align: right;">
                   <span>Emisión: ${fechaFormateada}</span>
                 </div>
               </div>
 
-              <!-- SECCIÓN 1: CONTENIDO DE LA FICHA -->
               <div class="bloque-ficha-print">
                 ${contenidoFicha.innerHTML}
               </div>
 
-              <!-- SECCIÓN 2: PLANO DE LA MANZANA CON EL LOTE Y PADRÓN DESTACADOS -->
               <div class="bloque-plano-print">
                 <h3>📍 Plano Catastral de Ubicación (Manzana y Parcela)</h3>
-                <img src="${imgMapaReal}" class="img-plano" alt="Plano Catastral" />
+                <img id="imagenMapaPlano" src="${imgData}" class="img-plano" />
               </div>
-
             </div>
+
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.focus();
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
           </body>
         </html>
       `);
 
       ventanaImpresion.document.close();
-      ventanaImpresion.focus();
-
-      setTimeout(() => {
-        ventanaImpresion.print();
-        ventanaImpresion.close();
-      }, 500);
 
     }).catch(err => {
-      modoCapturaImpresion = false;
-      map.removeLayer(grupoTempPadron);
+      map.setView(centroOriginal, zoomOriginal, { animate: false });
       if (capaTgi) capaTgi.eachLayer(l => capaTgi.resetStyle(l));
-      console.error("Error generando captura del plano:", err);
-      alert("Ocurrió un error al generar la vista del mapa.");
+      console.error("Error al capturar mapa:", err);
+      alert("No se pudo generar la imagen del mapa.");
     });
-  }, 400);
+  }, 600);
 };
 
 // Inicialización general
