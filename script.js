@@ -112,16 +112,23 @@ function resaltarCoincidencia(texto, busqueda) {
 
 function obtenerDatoGeoJSON(propiedades, claves) {
   if (!propiedades) return "-";
+
+  // 1. Coincidencia exacta directa
   for (let clave of claves) {
     if (propiedades[clave] !== undefined && propiedades[clave] !== null && String(propiedades[clave]).trim() !== "") {
       return propiedades[clave];
     }
   }
 
+  // 2. Coincidencia normalizada insensible a caracteres corruptos (ej. Nmero / Número / N°)
   const listaKeys = Object.keys(propiedades);
   for (let clave of claves) {
-    const claveNorm = normalizarTexto(clave);
-    const keyEncontrada = listaKeys.find(k => normalizarTexto(k) === claveNorm);
+    const claveNorm = normalizarTexto(clave).replace(/[^a-z0-9]/g, "");
+    const keyEncontrada = listaKeys.find(k => {
+      const kNorm = normalizarTexto(k).replace(/[^a-z0-9]/g, "");
+      return kNorm === claveNorm || kNorm.includes(claveNorm);
+    });
+
     if (keyEncontrada && propiedades[keyEncontrada] !== undefined && propiedades[keyEncontrada] !== null && String(propiedades[keyEncontrada]).trim() !== "") {
       return propiedades[keyEncontrada];
     }
@@ -400,7 +407,6 @@ async function cargarDatos() {
       const jsonDeuda = await resDeuda.json();
       const arrayFeaturesDeuda = jsonDeuda.features || (Array.isArray(jsonDeuda) ? jsonDeuda : []);
 
-      // Búsqueda dinámica de la fecha global del GeoJSON (propiedad "Fecha")
       for (const item of arrayFeaturesDeuda) {
         const props = item.properties || item;
         if (props && props["Fecha"] && String(props["Fecha"]).trim() !== "") {
@@ -968,7 +974,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 12. FICHA TÉCNICA CATASTRAL FLOTANTE
+// 12. FICHA TÉCNICA CATASTRAL FLOTANTE (CON CAMPO BALDÍO)
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
@@ -993,8 +999,17 @@ function mostrarFicha(p) {
   const padron = decodificarTexto(obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]));
   const titular = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Tit_Nombre", "Nombre", "NOMBRE"]));
 
-  // Datos Sección 2: Titular, Ubicación, Datos Catastrales y Medidas
-  const dni = decodificarTexto(obtenerDatoGeoJSON(p, ["Tit. Doc.", "TIT. DOC.", "DNI", "dni", "Dni"]));
+  // Datos Sección 2: Titular, DNI, Ubicación, Medidas Catastrales y Baldío
+  const dni = decodificarTexto(obtenerDatoGeoJSON(p, [
+    "Tit. Doc. Número", 
+    "Tit. Doc. Numero", 
+    "Tit. Doc. N°", 
+    "Tit. Doc.", 
+    "TIT. DOC.", 
+    "DNI", 
+    "dni", 
+    "Dni"
+  ]));
   const ubicacion = decodificarTexto(obtenerDatoGeoJSON(p, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion"]));
   const manzana = obtenerDatoGeoJSON(p, ["Manzana", "MANZANA"]);
   const seccion = obtenerDatoGeoJSON(p, ["Parcela", "PARCELA", "Seccion", "SECCION"]);
@@ -1004,12 +1019,15 @@ function mostrarFicha(p) {
   const superficie = obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2"]);
   const ficha = obtenerDatoGeoJSON(p, ["Varios 7", "VARIOS 7", "Ficha Catastral", "FICHA", "Ficha"]);
 
+  // Lectura del campo Baldio de Deuda-tgi.geojson (Por defecto "No")
+  const valBaldioRaw = normalizarTexto(obtenerDatoGeoJSON(p, ["Baldio", "BALDIO", "baldio", "EsBaldio"]));
+  const tributaBaldio = (valBaldioRaw === "s" || valBaldioRaw === "si" || valBaldioRaw === "si" || valBaldioRaw === "true") ? "Sí" : "No";
+
   // Datos Sección 3: Deuda y Períodos
   const montoDeuda = limpiarMontoDeuda(p);
   const deudaFormateada = formatearMoneda(montoDeuda);
   const mesesAdeud = obtenerMesesDeuda(p);
 
-  // Toma dinámicamente el campo "Fecha" de la parcela o la fecha global capturada del GeoJSON
   const valFechaLote = obtenerDatoGeoJSON(p, ["Fecha", "FECHA", "deudafecha", "DeudaFecha"]);
   const deudaFecha = (valFechaLote !== "-") ? valFechaLote : fechaDeudaGeoJSON;
 
@@ -1056,7 +1074,8 @@ function mostrarFicha(p) {
         <p><strong>Frente:</strong> <span>${frente !== '-' ? frente + ' m' : '-'}</span></p>
         <p><strong>Fondo:</strong> <span>${fondo !== '-' ? fondo + ' m' : '-'}</span></p>
         <p><strong>Superficie:</strong> <span>${superficie !== '-' ? superficie + ' m²' : '-'}</span></p>
-        <p class="col-span-2"><strong>Ficha Catastral:</strong> <span>${ficha}</span></p>
+        <p><strong>Ficha Catastral:</strong> <span>${ficha}</span></p>
+        <p><strong>Tributa como Baldío:</strong> <span style="font-weight: 800; color: ${tributaBaldio === 'Sí' ? '#e67e22' : '#2c3e50'};">${tributaBaldio}</span></p>
       </div>
     </div>
 
@@ -1067,7 +1086,7 @@ function mostrarFicha(p) {
         <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
         <p><strong>Monto Deuda:</strong> <span class="monto-deuda-ficha">${deudaFormateada}</span></p>
         <p><strong>Meses Adeudados:</strong> <span>${mesesAdeud} ${mesesAdeud === 1 ? 'mes' : 'meses'}</span></p>
-        <p><strong>Deuda a la Fecha:</strong> <span>${deudaFecha}</span></p>
+        <p><strong>Fecha Liquidación:</strong> <span>${deudaFecha}</span></p>
       </div>
     </div>
   `;
@@ -1078,15 +1097,6 @@ function mostrarFicha(p) {
   if (panelFlotante) {
     panelFlotante.style.display = "flex";
   }
-}
-
-function cerrarFicha() {
-  const panelFlotante = document.getElementById('panelFichaFlotante');
-  if (panelFlotante) {
-    panelFlotante.style.display = 'none';
-  }
-  limpiarResalteLote();
-  limpiarMedidasLote();
 }
 
 // ==========================================
@@ -2162,7 +2172,7 @@ window.descargarExcelSeleccionados = function () {
       "Padrón": obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]),
       "Partida": obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]),
       "Titular": obtenerDatoGeoJSON(p, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]),
-      "DNI": obtenerDatoGeoJSON(p, ["Tit. Doc.", "TIT. DOC.", "DNI", "dni", "Dni"]),
+      "DNI": obtenerDatoGeoJSON(p, ["Tit. Doc. Número", "Tit. Doc. Numero", "Tit. Doc.", "TIT. DOC.", "DNI", "dni", "Dni"]),
       "Ubicación": obtenerDatoGeoJSON(p, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion"]),
       "Manzana": obtenerDatoGeoJSON(p, ["Manzana", "MANZANA"]),
       "Sección": obtenerDatoGeoJSON(p, ["Parcela", "PARCELA", "Seccion", "SECCION"]),
@@ -2186,7 +2196,7 @@ window.descargarExcelSeleccionados = function () {
 };
 
 // ==========================================
-// IMPRESIÓN CON LETRAS MÁS GRANDES EN LA FICHA
+// IMPRESIÓN CON LETRAS MÁS GRANDES Y DNI CORREGIDO
 // ==========================================
 window.imprimirFichaCatastral = function () {
   const contenidoFicha = document.getElementById('cuerpoFichaContenido');
@@ -2224,10 +2234,10 @@ window.imprimirFichaCatastral = function () {
     });
   }
 
-  // 2. Guardar estado del mapa y aplicar encuadre
+  // 2. Guardar estado del mapa y aplicar encuadre (MODIFICAR PADDING AQUÍ PARA ALEJAR/ACERCAR)
   const centroOriginal = map.getCenter();
   const zoomOriginal = map.getZoom();
-  map.fitBounds(loteSeleccionadoActual.getBounds(), { padding: [220, 220], animate: false });
+  map.fitBounds(loteSeleccionadoActual.getBounds(), { padding: [180, 180], animate: false });
 
   const mapElement = document.getElementById('map');
 
