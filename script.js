@@ -120,7 +120,7 @@ function obtenerDatoGeoJSON(propiedades, claves) {
     }
   }
 
-  // 2. Coincidencia normalizada insensible a caracteres corruptos (ej. Nmero / Número / N°)
+  // 2. Coincidencia normalizada insensible a caracteres corruptos
   const listaKeys = Object.keys(propiedades);
   for (let clave of claves) {
     const claveNorm = normalizarTexto(clave).replace(/[^a-z0-9]/g, "");
@@ -974,7 +974,7 @@ window.seleccionarLotePorPadron = function (padronVal) {
 };
 
 // ==========================================
-// 12. FICHA TÉCNICA CATASTRAL FLOTANTE (CON CAMPO BALDÍO)
+// 12. FICHA TÉCNICA CATASTRAL FLOTANTE Y BOTÓN DE CIERRE
 // ==========================================
 function mostrarFicha(p) {
   const panelFlotante = document.getElementById('panelFichaFlotante');
@@ -1021,7 +1021,7 @@ function mostrarFicha(p) {
 
   // Lectura del campo Baldio de Deuda-tgi.geojson (Por defecto "No")
   const valBaldioRaw = normalizarTexto(obtenerDatoGeoJSON(p, ["Baldio", "BALDIO", "baldio", "EsBaldio"]));
-  const tributaBaldio = (valBaldioRaw === "s" || valBaldioRaw === "si" || valBaldioRaw === "si" || valBaldioRaw === "true") ? "Sí" : "No";
+  const tributaBaldio = (valBaldioRaw === "s" || valBaldioRaw === "si" || valBaldioRaw === "true") ? "Sí" : "No";
 
   // Datos Sección 3: Deuda y Períodos
   const montoDeuda = limpiarMontoDeuda(p);
@@ -1086,7 +1086,7 @@ function mostrarFicha(p) {
         <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
         <p><strong>Monto Deuda:</strong> <span class="monto-deuda-ficha">${deudaFormateada}</span></p>
         <p><strong>Meses Adeudados:</strong> <span>${mesesAdeud} ${mesesAdeud === 1 ? 'mes' : 'meses'}</span></p>
-        <p><strong>Deuda a la Fecha:</strong> <span>${deudaFecha}</span></p>
+        <p><strong>Fecha Liquidación:</strong> <span>${deudaFecha}</span></p>
       </div>
     </div>
   `;
@@ -1098,6 +1098,16 @@ function mostrarFicha(p) {
     panelFlotante.style.display = "flex";
   }
 }
+
+window.cerrarFicha = function() {
+  const panelFlotante = document.getElementById('panelFichaFlotante');
+  if (panelFlotante) {
+    panelFlotante.style.display = 'none';
+    panelFlotante.classList.remove('activo', 'visible', 'abierto');
+  }
+  limpiarResalteLote();
+  limpiarMedidasLote();
+};
 
 // ==========================================
 // 13. DESPLEGABLES SECCIONES
@@ -1640,6 +1650,13 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// Tecla ESC para cerrar ficha flotante
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    cerrarFicha();
+  }
+});
+
 // ==========================================
 // 17. ETIQUETAS DINÁMICAS DE PADRÓN POR ZOOM
 // ==========================================
@@ -2168,6 +2185,9 @@ window.descargarExcelSeleccionados = function () {
 
   const datosFilas = lotesSeleccionadosMultiples.map(f => {
     const p = f.properties || {};
+    const valBaldioRaw = normalizarTexto(obtenerDatoGeoJSON(p, ["Baldio", "BALDIO", "baldio", "EsBaldio"]));
+    const tributaBaldio = (valBaldioRaw === "s" || valBaldioRaw === "si" || valBaldioRaw === "true") ? "Sí" : "No";
+
     return {
       "Padrón": obtenerDatoGeoJSON(p, ["Padron", "PADRON", "Padronn", "PADRONN", "Contrib", "CONTRIB"]),
       "Partida": obtenerDatoGeoJSON(p, ["PARTIDA", "Partida", "partida"]),
@@ -2180,6 +2200,7 @@ window.descargarExcelSeleccionados = function () {
       "Frente": obtenerDatoGeoJSON(p, ["Frente 1", "Frente", "FRENTE"]),
       "Fondo": obtenerDatoGeoJSON(p, ["Fondo", "FONDO"]),
       "Superficie": obtenerDatoGeoJSON(p, ["Superficie", "SUPERFICIE", "Sup_m2"]),
+      "Tributa Baldío": tributaBaldio,
       "Deuda TGI": formatearMoneda(limpiarMontoDeuda(p)),
       "Meses Adeudados": obtenerMesesDeuda(p)
     };
@@ -2196,7 +2217,7 @@ window.descargarExcelSeleccionados = function () {
 };
 
 // ==========================================
-// IMPRESIÓN CON LETRAS MÁS GRANDES Y DNI CORREGIDO
+// IMPRESIÓN CON LETRAS MÁS GRANDES, DNI Y BALDÍO
 // ==========================================
 window.imprimirFichaCatastral = function () {
   const contenidoFicha = document.getElementById('cuerpoFichaContenido');
@@ -2234,7 +2255,7 @@ window.imprimirFichaCatastral = function () {
     });
   }
 
-  // 2. Guardar estado del mapa y aplicar encuadre (MODIFICAR PADDING AQUÍ PARA ALEJAR/ACERCAR)
+  // 2. Guardar estado del mapa y aplicar encuadre
   const centroOriginal = map.getCenter();
   const zoomOriginal = map.getZoom();
   map.fitBounds(loteSeleccionadoActual.getBounds(), { padding: [180, 180], animate: false });
