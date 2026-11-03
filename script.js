@@ -1067,7 +1067,7 @@ function mostrarFicha(p) {
         <p><strong>Estado TGI:</strong> <span class="badge-tgi ${claseEstado}">${textoEstado}</span></p>
         <p><strong>Monto Deuda:</strong> <span class="monto-deuda-ficha">${deudaFormateada}</span></p>
         <p><strong>Meses Adeudados:</strong> <span>${mesesAdeud} ${mesesAdeud === 1 ? 'mes' : 'meses'}</span></p>
-        <p><strong>Fecha Liquidación:</strong> <span>${deudaFecha}</span></p>
+        <p><strong>Deuda a la Fecha:</strong> <span>${deudaFecha}</span></p>
       </div>
     </div>
   `;
