@@ -919,11 +919,11 @@ function calcularTotalBaldios() {
 }
 
 // ==========================================
-// 11. FILTROS Y BÚSQUEDA INSENSIBLE
+// 11. FILTROS Y BÚSQUEDA INSENSIBLE (TITULAR, PADRÓN Y PARTIDA)
 // ==========================================
 function filtrarTodo() {
   const inputA = document.getElementById('inputApellido');
-  const apellidoNorm = inputA ? normalizarTexto(inputA.value) : "";
+  const busquedaNorm = inputA ? normalizarTexto(inputA.value) : "";
 
   const sugApp = document.getElementById('listaSugerencias');
 
@@ -937,20 +937,24 @@ function filtrarTodo() {
   listadoLotesFiltroActual = datosTgi.features.filter(f => {
     const nom = normalizarTexto(obtenerDatoGeoJSON(f.properties, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]));
     const padron = normalizarTexto(obtenerDatoGeoJSON(f.properties, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"]));
-    return nom.includes(apellidoNorm) || padron.includes(apellidoNorm);
+    const partida = normalizarTexto(obtenerDatoGeoJSON(f.properties, ["PARTIDA", "Partida", "partida"]));
+    return nom.includes(busquedaNorm) || padron.includes(busquedaNorm) || partida.includes(busquedaNorm);
   });
 
   dibujarMapa(listadoLotesFiltroActual);
 
-  if (apellidoNorm.length >= 2) {
+  if (busquedaNorm.length >= 2) {
     const htmlA = listadoLotesFiltroActual.slice(0, 10).map(f => {
       const n = obtenerDatoGeoJSON(f.properties, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]);
       const p = obtenerDatoGeoJSON(f.properties, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"]);
+      const part = obtenerDatoGeoJSON(f.properties, ["PARTIDA", "Partida", "partida"]);
       const d = obtenerDatoGeoJSON(f.properties, ["Ubi. Calle", "UBI. CALLE", "Ubicacion", "UBICACION", "Direccion"]);
 
-      return `<div class="item-sugerencia" onclick="seleccionarLotePorPadron('${escaparHTML(p)}')">
+      const valorSeleccion = (p !== "-" && p !== "") ? p : part;
+
+      return `<div class="item-sugerencia" onclick="seleccionarLotePorPadron('${escaparHTML(valorSeleccion)}')">
                 <strong>👤 ${n}</strong><br>
-                <span style="font-size: 10px; color: #7f8c8d;">🆔 Padrón: ${p} | 📍 ${d}</span>
+                <span style="font-size: 10px; color: #7f8c8d;">🆔 Padrón: ${p} | Partida: ${part} | 📍 ${d}</span>
               </div>`;
     }).join('');
     if (sugApp) { sugApp.innerHTML = htmlA; sugApp.style.display = htmlA ? "block" : "none"; }
@@ -988,7 +992,10 @@ window.seleccionarLotePorPadron = function (padronVal) {
     const pGeo = String(
       obtenerDatoGeoJSON(f.properties, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"])
     ).trim();
-    return pGeo === claveBuscada;
+    const partGeo = String(
+      obtenerDatoGeoJSON(f.properties, ["PARTIDA", "Partida", "partida"])
+    ).trim();
+    return pGeo === claveBuscada || partGeo === claveBuscada;
   });
 
   if (lote) {
@@ -1001,8 +1008,11 @@ window.seleccionarLotePorPadron = function (padronVal) {
         const pLote = String(
           obtenerDatoGeoJSON(l.feature.properties, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"])
         ).trim();
+        const partLote = String(
+          obtenerDatoGeoJSON(l.feature.properties, ["PARTIDA", "Partida", "partida"])
+        ).trim();
 
-        if (pLote === claveBuscada) {
+        if (pLote === claveBuscada || partLote === claveBuscada) {
           limpiarResalteLote();
           l.setStyle({
             color: '#00ffff',
@@ -1619,7 +1629,7 @@ window.imprimirLotesSeleccionados = function () {
 };
 
 // ==========================================
-// 16. BÚSQUEDA BARRA SUPERIOR
+// 16. BÚSQUEDA BARRA SUPERIOR (TITULAR, PADRÓN Y PARTIDA)
 // ==========================================
 function ejecutarBusquedaBarra(texto) {
   const sugBarra = document.getElementById('listaSugerenciasBarra');
@@ -1639,7 +1649,8 @@ function ejecutarBusquedaBarra(texto) {
     if (!f || !f.properties) return false;
     const titular = normalizarTexto(obtenerDatoGeoJSON(f.properties, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]));
     const padron = normalizarTexto(obtenerDatoGeoJSON(f.properties, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"]));
-    return titular.includes(busqueda) || padron.includes(busqueda);
+    const partida = normalizarTexto(obtenerDatoGeoJSON(f.properties, ["PARTIDA", "Partida", "partida"]));
+    return titular.includes(busqueda) || padron.includes(busqueda) || partida.includes(busqueda);
   }).slice(0, 15);
 
   if (coincidentes.length === 0) {
@@ -1652,13 +1663,17 @@ function ejecutarBusquedaBarra(texto) {
   coincidentes.forEach(f => {
     const titularOriginal = obtenerDatoGeoJSON(f.properties, ["Tit. Nombre", "TITULAR", "Titular", "Nombre", "NOMBRE"]);
     const padronOriginal = String(obtenerDatoGeoJSON(f.properties, ["Padron", "Padronn", "PADRON", "PADRONN", "Contrib", "CONTRIB"]));
+    const partidaOriginal = String(obtenerDatoGeoJSON(f.properties, ["PARTIDA", "Partida", "partida"]));
 
     const titularResaltado = resaltarCoincidencia(titularOriginal, texto.trim());
     const padronResaltado = resaltarCoincidencia(padronOriginal, texto.trim());
+    const partidaResaltada = resaltarCoincidencia(partidaOriginal, texto.trim());
+
+    const valorClave = (padronOriginal !== "-" && padronOriginal !== "") ? padronOriginal : partidaOriginal;
 
     html += `
-      <div class="item-sugerencia" onclick="seleccionarLoteDesdeBarra('${escaparHTML(padronOriginal)}')">
-        <strong>Padrón: ${padronResaltado}</strong> - ${titularResaltado}
+      <div class="item-sugerencia" onclick="seleccionarLoteDesdeBarra('${escaparHTML(valorClave)}')">
+        <strong>Padrón: ${padronResaltado}</strong> | <strong>Partida: ${partidaResaltada}</strong> - ${titularResaltado}
       </div>
     `;
   });
