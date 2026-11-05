@@ -135,6 +135,41 @@ function obtenerDatoGeoJSON(propiedades, claves) {
   return "-";
 }
 
+function titilarLote(layer) {
+  if (!layer || !layer.setStyle) return;
+
+  let contador = 0;
+  const estiloOriginal = {
+    color: '#00ffff',
+    weight: 4.5,
+    fillOpacity: 0.85,
+    dashArray: null
+  };
+
+  const estiloDestello = {
+    color: '#ff0055',
+    fillColor: '#ffff00',
+    weight: 6,
+    fillOpacity: 0.95,
+    dashArray: null
+  };
+
+  const intervalo = setInterval(() => {
+    if (contador % 2 === 0) {
+      layer.setStyle(estiloDestello);
+      if (layer.bringToFront) layer.bringToFront();
+    } else {
+      layer.setStyle(estiloOriginal);
+    }
+    contador++;
+
+    if (contador >= 6) {
+      clearInterval(intervalo);
+      layer.setStyle(estiloOriginal);
+    }
+  }, 300);
+}
+
 // ==========================================
 // 4. UI, NAVEGACIÓN Y AYUDA
 // ==========================================
@@ -978,6 +1013,18 @@ window.seleccionarLotePorPadron = function (padronVal) {
           l.bringToFront();
           loteResaltadoActual = l;
           mostrarMedidasLote(l);
+
+          if (l.getBounds && l.getBounds().isValid()) {
+            const margenMapa = window.innerWidth <= 768 ? [15, 120] : [320, 50];
+            map.fitBounds(l.getBounds(), {
+              maxZoom: 20,
+              paddingTopLeft: [50, 50],
+              paddingBottomRight: margenMapa,
+              animate: true
+            });
+          }
+
+          titilarLote(l);
         }
       });
     }
@@ -2275,7 +2322,6 @@ window.descargarFichaPDF = function () {
   if (capaTgi) {
     let targetProps = null;
 
-    // 1. Identificar el lote seleccionado y sus propiedades
     capaTgi.eachLayer(layer => {
       if (layer.feature && layer.feature.properties) {
         const p = layer.feature.properties;
@@ -2288,7 +2334,6 @@ window.descargarFichaPDF = function () {
       }
     });
 
-    // 2. Calcular límites combinando Sección + Manzana
     if (targetProps) {
       const secTarget = String(obtenerDatoGeoJSON(targetProps, ["Parcela", "PARCELA", "Seccion", "SECCION"])).trim();
       const mzaTarget = String(obtenerDatoGeoJSON(targetProps, ["Manzana", "MANZANA", "Mza", "MZA"])).trim();
@@ -2316,7 +2361,6 @@ window.descargarFichaPDF = function () {
     }
   }
 
-  // 3. Validar que el encuadre de la manzana sea cercano (diagonal menor a 800m)
   const esManzanaRazonable = limitesManzana && limitesManzana.isValid() && 
     (limitesManzana.getNorthEast().distanceTo(limitesManzana.getSouthWest()) < 800);
 
@@ -2404,7 +2448,6 @@ function abrirVentanaImpresionFicha(htmlFicha, imgMapa, padron) {
           .ficha-seccion { background: #fff; border: 1px solid #cbd5e1; padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; }
           .bloque-identificacion { background: #f0f7ff; border: 1px solid #bae6fd; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
           
-          /* Estilos para resalte de Padrón, Partida y Titular en la impresión */
           .valor-ficha-bold, .valor-ficha-titular { 
             font-weight: bold !important; 
             color: #1d4ed8 !important; 
