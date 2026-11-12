@@ -2328,6 +2328,18 @@ window.descargarFichaPDF = function () {
     return alert("No se pudo identificar el padrón activo.");
   }
 
+  // Clonar el contenido de la ficha y quitar el bloque de deuda solo para la impresión
+  const clonFicha = contenidoFicha.cloneNode(true);
+  const bloqueDeuda = clonFicha.querySelector('.bloque-deuda');
+  if (bloqueDeuda) {
+    bloqueDeuda.remove();
+  }
+  const htmlFichaParaImprimir = clonFicha.innerHTML;
+
+  // Obtener ruta absoluta del logo para evitar que falle en la ventana nueva
+  const logoImg = document.querySelector('.logo-header');
+  const logoSrc = logoImg ? logoImg.src : new URL('logo.png', window.location.href).href;
+
   const centroOriginal = map.getCenter();
   const zoomOriginal = map.getZoom();
 
@@ -2435,14 +2447,11 @@ window.descargarFichaPDF = function () {
   setTimeout(async () => {
     const imgData = await obtenerCanvasMapaDataURL(mapElement);
     restaurarEstadoMapa();
-    abrirVentanaImpresionFicha(contenidoFicha.innerHTML, imgData, padronBuscado);
+    abrirVentanaImpresionFicha(htmlFichaParaImprimir, imgData, padronBuscado, logoSrc);
   }, 500);
 };
 
-function abrirVentanaImpresionFicha(htmlFicha, imgMapa, padron) {
-  const fechaActual = new Date();
-  const fechaFormateada = `${fechaActual.getDate()}/${fechaActual.getMonth() + 1}/${fechaActual.getFullYear()} ${String(fechaActual.getHours()).padStart(2, '0')}:${String(fechaActual.getMinutes()).padStart(2, '0')}`;
-
+function abrirVentanaImpresionFicha(htmlFicha, imgMapa, padron, logoSrc) {
   const ventana = window.open('', '_blank', 'height=800,width=900');
   if (!ventana) {
     return alert("Por favor, permita las ventanas emergentes en su navegador para imprimir.");
@@ -2458,6 +2467,8 @@ function abrirVentanaImpresionFicha(htmlFicha, imgMapa, padron) {
           @page { size: A4 portrait; margin: 10mm; }
           body { font-family: Arial, sans-serif; padding: 10px; margin: 0; color: #1e293b; background: #fff; }
           .header-print { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; margin-bottom: 12px; }
+          .header-print-left { display: flex; align-items: center; gap: 12px; }
+          .header-print-logo { height: 42px; width: auto; object-fit: contain; }
           .header-print h1 { margin: 0; font-size: 18px; color: #2c3e50; }
           .header-print span { font-size: 11px; color: #64748b; font-weight: bold; }
           .ficha-seccion { background: #fff; border: 1px solid #cbd5e1; padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; }
@@ -2470,13 +2481,8 @@ function abrirVentanaImpresionFicha(htmlFicha, imgMapa, padron) {
           }
 
           .ficha-subtitulo { font-size: 12px; font-weight: bold; color: #1e293b; margin-bottom: 6px; border-bottom: 1px solid #3b82f6; text-transform: uppercase; }
-          .ficha-grid-2col, .ficha-grid-deuda { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12px; }
+          .ficha-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12px; }
           p { margin: 3px 0; }
-          .monto-deuda-ficha { font-weight: bold; color: #b91c1c; }
-          .badge-tgi { display: inline-block; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 3px; color: #fff; }
-          .badge-tgi.al-dia { background-color: #2ecc71; }
-          .badge-tgi.a-vencer { background-color: #f1c40f; color: #2c3e50; }
-          .badge-tgi.con-deuda { background-color: #e74c3c; }
           .plano-box { border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; margin-top: 10px; text-align: center; }
           .plano-box h3 { font-size: 11px; margin: 0 0 6px 0; text-align: left; color: #334155; text-transform: uppercase; }
           .img-plano { width: 100%; max-height: 110mm; object-fit: contain; border: 1px solid #e2e8f0; }
@@ -2484,12 +2490,12 @@ function abrirVentanaImpresionFicha(htmlFicha, imgMapa, padron) {
       </head>
       <body>
         <div class="header-print">
-          <div>
-            <h1>Municipalidad de Rufino — Catastro TGI</h1>
-            <span>Ficha Catastral y Plano de Ubicación</span>
-          </div>
-          <div style="text-align: right;">
-            <span>Fecha: ${fechaFormateada}</span>
+          <div class="header-print-left">
+            <img src="${logoSrc}" alt="Logo" class="header-print-logo" onerror="this.style.display='none'" />
+            <div>
+              <h1>Municipalidad de Rufino — Catastro TGI</h1>
+              <span>Ficha Catastral y Plano de Ubicación</span>
+            </div>
           </div>
         </div>
 
