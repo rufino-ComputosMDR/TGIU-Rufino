@@ -1847,21 +1847,28 @@ async function cargarObrasCSV() {
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+    // raw: true evita que SheetJS invierta automáticamente día y mes (MM/DD vs DD/MM)
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', raw: true });
     const firstSheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[firstSheetName];
 
     const celdaAF2 = sheet['AF2'];
     if (celdaAF2 && celdaAF2.v !== undefined && celdaAF2.v !== null && String(celdaAF2.v).trim() !== "") {
-      if (celdaAF2.t === 'd' && celdaAF2.v instanceof Date) {
-        const d = celdaAF2.v;
-        fechaDeudaAF2 = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      const valorTexto = String(celdaAF2.v).trim();
+      
+      // Si viene como texto con barras o guiones (ej: 13/11/2026 o 13-11-26), respetar DD/MM/AAAA
+      const partes = valorTexto.split(/[\/\-]/);
+      if (partes.length === 3) {
+        const dia = partes[0].padStart(2, '0');
+        const mes = partes[1].padStart(2, '0');
+        const anio = partes[2].length === 2 ? `20${partes[2]}` : partes[2];
+        fechaDeudaAF2 = `${dia}/${mes}/${anio}`;
       } else {
-        fechaDeudaAF2 = String(celdaAF2.v).trim();
+        fechaDeudaAF2 = valorTexto;
       }
     }
 
-    obrasCargadasExcel = XLSX.utils.sheet_to_json(sheet);
+    obrasCargadasExcel = XLSX.utils.sheet_to_json(sheet, { raw: false });
     
     if (fechaDeudaAF2 === "No especificada" && obrasCargadasExcel.length > 0) {
       const reg0 = obrasCargadasExcel[0];
